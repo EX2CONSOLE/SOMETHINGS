@@ -131,6 +131,39 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
 .wrapseg{ flex-wrap:wrap; }
 .wrapseg button{ flex:1 1 calc(33.333% - 6px); padding:9px 2px; font-size:14px; }
 
+details{ text-align:start; margin:0 0 18px; }
+summary{ cursor:pointer; font-size:16px; color:var(--ink-dim); margin:0 0 10px; }
+.mini{
+  font-family:inherit; font-size:16px; font-weight:700; color:var(--ink); padding:10px 6px;
+  background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.3); border-radius:999px; cursor:pointer;
+}
+.menugrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.stack .ghost + .ghost{ margin-top:12px; }
+#coins{ font-size:14px; color:#ffd23f; margin-top:2px; font-variant-numeric:tabular-nums; }
+#timer{ display:none; font-size:30px; font-weight:700; line-height:1; color:var(--accent); font-variant-numeric:tabular-nums; }
+#missed{ display:none; font-size:14px; color:var(--ink-dim); }
+#toast{
+  position:fixed; left:50%; top:calc(var(--safe-area-inset-top, env(safe-area-inset-top,0px)) + 96px);
+  transform:translateX(-50%) translateY(-8px); z-index:14; max-width:min(92vw,380px);
+  padding:10px 16px; border-radius:16px; background:var(--panel); border:1px solid rgba(255,255,255,.25);
+  font-size:15px; font-weight:600; text-align:center; opacity:0; pointer-events:none;
+  transition:opacity .25s, transform .25s;
+}
+#toast.show{ opacity:1; transform:translateX(-50%); }
+.sect{ margin:14px 0 8px; font-size:14px; color:var(--ink-dim); text-align:start; }
+.item{ display:flex; align-items:center; gap:10px; padding:10px 12px; margin:0 0 8px; border-radius:16px; background:rgba(255,255,255,.08); text-align:start; }
+.item .nm{ flex:1; font-size:15px; line-height:1.3; min-width:0; }
+.item .pv{ display:flex; gap:4px; }
+.item .pv i{ display:block; width:16px; height:20px; border-radius:50%; }
+.item .st{
+  font-family:inherit; font-size:14px; font-weight:700; padding:7px 12px; border-radius:999px; border:0;
+  background:rgba(255,255,255,.16); color:var(--ink); cursor:pointer; white-space:nowrap;
+}
+.item .st.on{ background:var(--accent); color:#2a1650; }
+.item .rw{ font-size:14px; font-weight:700; color:#ffd23f; white-space:nowrap; }
+.item.done{ background:rgba(109,255,154,.14); }
+.pbar{ height:6px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; margin-top:6px; }
+.pbar i{ display:block; height:100%; background:var(--accent); }
 /* ödüllü reklam ekranı */
 #adScreen{
   position:fixed; inset:0; z-index:12; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -189,6 +222,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   <div>
     <div id="score">0</div>
     <div id="best">Rekor 0</div>
+    <div id="coins">🪙 0</div>
   </div>
   <div id="combo">
     <div id="mx">x1</div>
@@ -196,7 +230,9 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     <div id="bar"><i></i></div>
   </div>
   <div id="right">
+    <div id="timer"></div>
     <div id="lives"></div>
+    <div id="missed"></div>
     <div id="btns">
       <button id="pause" aria-label="Duraklat">⏸</button>
       <button id="mus" aria-label="Müziği aç veya kapat">🎵</button>
@@ -218,14 +254,64 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   <div class="panel off" id="pMenu">
     <h1 id="ttl">BalloonRush</h1>
     <p id="sub"></p>
-    <ul id="rules">
-      <li style="--c:#3da5ff" id="r1"></li>
-      <li style="--c:#3b3350" id="r2"></li>
-      <li style="--c:#ff4d6d" id="r3"></li>
-      <li style="--c:#ffd23f" id="r4"></li>
-    </ul>
+    <div class="row">
+      <span class="lbl" data-i18n="modeLbl"></span>
+      <div class="seg" id="modeseg" role="group">
+        <button data-mode="classic" id="m0"></button>
+        <button data-mode="timed" id="m1"></button>
+        <button data-mode="zen" id="m2"></button>
+      </div>
+      <div class="hint" id="modehint"></div>
+    </div>
+    <div class="row">
+      <span class="lbl" data-i18n="diffLbl"></span>
+      <div class="seg" id="diffseg" role="group">
+        <button data-diff="easy" id="d0"></button>
+        <button data-diff="normal" id="d1"></button>
+        <button data-diff="hard" id="d2"></button>
+      </div>
+    </div>
+    <details id="how">
+      <summary data-i18n="how"></summary>
+      <ul id="rules">
+        <li style="--c:#3da5ff" id="r1"></li>
+        <li style="--c:#3b3350" id="r2"></li>
+        <li style="--c:#ff4d6d" id="r3"></li>
+        <li style="--c:#ffd23f" id="r4"></li>
+        <li style="--c:#8fe9ff" id="r5"></li>
+      </ul>
+    </details>
     <button class="big" id="go"></button>
-    <button class="ghost" id="openSet"></button>
+    <div class="menugrid">
+      <button class="mini" id="openShop" data-i18n="shop" data-ico="🛒"></button>
+      <button class="mini" id="openMis" data-i18n="missions" data-ico="🎯"></button>
+      <button class="mini" id="openAch" data-i18n="ach" data-ico="🏆"></button>
+      <button class="mini" id="openSet" data-i18n="settings" data-ico="⚙"></button>
+    </div>
+  </div>
+
+  <!-- mağaza -->
+  <div class="panel off" id="pShop">
+    <h1 data-i18n="shop"></h1>
+    <p id="shopCoins"></p>
+    <div id="shopList"></div>
+    <button class="big" id="backShop" data-i18n="back"></button>
+  </div>
+
+  <!-- günlük görevler -->
+  <div class="panel off" id="pMissions">
+    <h1 data-i18n="dailyTitle" style="font-size:34px"></h1>
+    <p data-i18n="dailyNote"></p>
+    <div id="missionList"></div>
+    <button class="big" id="backMis" data-i18n="back"></button>
+  </div>
+
+  <!-- başarımlar -->
+  <div class="panel off" id="pAch">
+    <h1 data-i18n="ach" style="font-size:36px"></h1>
+    <p id="achCount"></p>
+    <div id="achList"></div>
+    <button class="big" id="backAch" data-i18n="back"></button>
   </div>
 
   <!-- devam et? (reklam izle) -->
@@ -242,7 +328,8 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     <p>&nbsp;</p>
     <button class="big" id="resume"></button>
     <button class="big" id="restart"></button>
-    <button class="ghost" id="openSet2"></button>
+    <button class="ghost" id="openSet2" data-i18n="settings"></button>
+    <button class="ghost" id="quitRun" data-i18n="quit"></button>
   </div>
 
   <!-- ayarlar -->
@@ -270,6 +357,8 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   </div>
 </div>
 
+<div id="toast"></div>
+
 <div id="adScreen" class="hidden">
   <button class="ghost" id="adClose"></button>
   <div id="adTag"></div>
@@ -295,7 +384,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   const FONT = 'Fredoka, Cairo, system-ui, sans-serif';
   const ltr = s => '\u2066' + s + '\u2069'; // sayıların sağdan sola metinde bozulmaması için
 
-  const COL = [
+  let COL = [
     { m:'#ff4d6d', l:'#ffc2cd', d:'#b8123f' },
     { m:'#3da5ff', l:'#c4e5ff', d:'#1262b8' },
     { m:'#ffd23f', l:'#fff3b0', d:'#cf8f00' }
@@ -517,6 +606,190 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     { code:'es', name:'Español' }, { code:'pt', name:'Português' }, { code:'ru', name:'Русский' },
     { code:'de', name:'Deutsch' }, { code:'fr', name:'Français' }, { code:'id', name:'Bahasa Indonesia' }
   ];
+  // v3: yeni modlar, mağaza, görevler ve başarımlar için eklenen metinler (eski anahtarların bir kısmını da günceller)
+  const EXTRA = {
+    tr: {
+      r2:"Dikenli balona dokunma, bir can gider.",
+      r3:"Üstteki kesik çizgiyi aşan normal balonlardan 3 tanesi kaçarsa kaybedersin. Boşa dokunmak seriyi bozar.",
+      r5:"Zikzak balon yön değiştirir, bölünen balon ikiye ayrılır, altın balon altın verir.",
+      danger:"3 normal balon kaçarsa kaybedersin",
+      overMissed:"3 balon kaçtı", overTime:"Süre doldu", overQuit:"Oyunu bitirdin",
+      how:"Nasıl oynanır?", modeLbl:"Oyun modu", diffLbl:"Zorluk",
+      modeNames:["Klasik","Süreli","Zen"],
+      modeHints:["3 can, en fazla 3 kaçan balon","60 saniyede en yüksek skor","Can yok, bomba yok, rahatça patlat"],
+      diffNames:["Kolay","Normal","Zor"],
+      shop:"Mağaza", missions:"Görevler", ach:"Başarımlar",
+      shopSkins:"Balon stilleri", shopFx:"Patlama efektleri",
+      owned:"Sahipsin", equip:"Seç", equipped:"Seçili", noCoins:"Yeterli altının yok", bought:"Satın alındı!",
+      dailyTitle:"Günlük görevler", dailyNote:"Her gün yenilenir.",
+      toastAch:"Başarım açıldı", toastMission:"Görev tamamlandı",
+      quit:"Bitir", coinsEarned:"altın",
+      skinNames:["Klasik","Pastel","Neon","Şeker"],
+      fxNames:["Varsayılan","Konfeti","Altın ışıltı","Buz"],
+      tpl:{ pops:"{n} balon patlat", zigzag:"{n} zikzak balon patlat", split:"{n} bölünen balon patlat", gold:"{n} altın balon patlat", combo:"x{n} kombo yap", score:"Tek oyunda {n} puan yap", games:"{n} oyun oyna", buy:"Mağazadan alınan ürün: {n}" }
+    },
+    en: {
+      r2:"Don't touch spiked balloons, it costs a life.",
+      r3:"If 3 normal balloons escape past the dashed line at the top, you lose. Tapping empty space breaks your streak.",
+      r5:"Zigzag balloons change direction, split balloons break in two, gold balloons give coins.",
+      danger:"you lose if 3 normal balloons escape",
+      overMissed:"3 balloons escaped", overTime:"Time is up", overQuit:"You ended the run",
+      how:"How to play", modeLbl:"Game mode", diffLbl:"Difficulty",
+      modeNames:["Classic","Timed","Zen"],
+      modeHints:["3 lives, up to 3 escaped balloons","Highest score in 60 seconds","No lives, no bombs, just pop and relax"],
+      diffNames:["Easy","Normal","Hard"],
+      shop:"Shop", missions:"Missions", ach:"Achievements",
+      shopSkins:"Balloon styles", shopFx:"Pop effects",
+      owned:"Owned", equip:"Equip", equipped:"Equipped", noCoins:"Not enough coins", bought:"Purchased!",
+      dailyTitle:"Daily missions", dailyNote:"Renews every day.",
+      toastAch:"Achievement unlocked", toastMission:"Mission complete",
+      quit:"Finish", coinsEarned:"coins",
+      skinNames:["Classic","Pastel","Neon","Candy"],
+      fxNames:["Default","Confetti","Gold shimmer","Ice"],
+      tpl:{ pops:"Pop {n} balloons", zigzag:"Pop {n} zigzag balloons", split:"Pop {n} split balloons", gold:"Pop {n} gold balloons", combo:"Reach an x{n} combo", score:"Score {n} points in one game", games:"Play {n} games", buy:"Items bought in the shop: {n}" }
+    },
+    ar: {
+      r2:"لا تلمس البالون الشائك، فهو يكلّفك قلباً.",
+      r3:"إذا هرب 3 بالونات عادية فوق الخط المتقطع في الأعلى فإنك تخسر. واللمس في الفراغ يقطع السلسلة.",
+      r5:"البالون المتعرّج يغيّر اتجاهه، والبالون المنقسم ينقسم إلى اثنين، والبالون الذهبي يمنحك عملات.",
+      danger:"تخسر إذا هرب 3 بالونات عادية",
+      overMissed:"هرب 3 بالونات", overTime:"انتهى الوقت", overQuit:"أنهيت اللعبة",
+      how:"طريقة اللعب", modeLbl:"نمط اللعب", diffLbl:"الصعوبة",
+      modeNames:["كلاسيكي","موقّت","هادئ"],
+      modeHints:["3 قلوب ويُسمح بهروب 3 بالونات","أعلى نتيجة في 60 ثانية","بلا قلوب وبلا قنابل، فقط فجّر واسترخِ"],
+      diffNames:["سهل","عادي","صعب"],
+      shop:"المتجر", missions:"المهام", ach:"الإنجازات",
+      shopSkins:"أنماط البالونات", shopFx:"مؤثرات الانفجار",
+      owned:"تملكه", equip:"اختيار", equipped:"مُختار", noCoins:"ليس لديك عملات كافية", bought:"تم الشراء!",
+      dailyTitle:"المهام اليومية", dailyNote:"تتجدد كل يوم.",
+      toastAch:"تم فتح إنجاز", toastMission:"اكتملت المهمة",
+      quit:"إنهاء", coinsEarned:"عملة",
+      skinNames:["كلاسيكي","باستيل","نيون","حلوى"],
+      fxNames:["افتراضي","قصاصات","لمعان ذهبي","جليد"],
+      tpl:{ pops:"فجّر بالونات: {n}", zigzag:"فجّر بالونات متعرّجة: {n}", split:"فجّر بالونات منقسمة: {n}", gold:"فجّر بالونات ذهبية: {n}", combo:"حقّق سلسلة x{n}", score:"النقاط في لعبة واحدة: {n}", games:"عدد الجولات: {n}", buy:"عناصر مشتراة من المتجر: {n}" }
+    },
+    es: {
+      r2:"No toques los globos con pinchos: te cuestan una vida.",
+      r3:"Si 3 globos normales escapan por encima de la línea de puntos, pierdes. Tocar el vacío rompe tu racha.",
+      r5:"Los globos zigzag cambian de dirección, los globos divididos se parten en dos y los globos dorados dan monedas.",
+      danger:"pierdes si escapan 3 globos normales",
+      overMissed:"Escaparon 3 globos", overTime:"Se acabó el tiempo", overQuit:"Terminaste la partida",
+      how:"Cómo jugar", modeLbl:"Modo de juego", diffLbl:"Dificultad",
+      modeNames:["Clásico","Contrarreloj","Zen"],
+      modeHints:["3 vidas y como máximo 3 globos escapados","Mayor puntuación en 60 segundos","Sin vidas ni bombas, solo revienta y relájate"],
+      diffNames:["Fácil","Normal","Difícil"],
+      shop:"Tienda", missions:"Misiones", ach:"Logros",
+      shopSkins:"Estilos de globo", shopFx:"Efectos al reventar",
+      owned:"Lo tienes", equip:"Elegir", equipped:"Elegido", noCoins:"No tienes suficientes monedas", bought:"¡Comprado!",
+      dailyTitle:"Misiones diarias", dailyNote:"Se renuevan cada día.",
+      toastAch:"Logro desbloqueado", toastMission:"Misión completada",
+      quit:"Terminar", coinsEarned:"monedas",
+      skinNames:["Clásico","Pastel","Neón","Caramelo"],
+      fxNames:["Predeterminado","Confeti","Brillo dorado","Hielo"],
+      tpl:{ pops:"Revienta {n} globos", zigzag:"Revienta {n} globos zigzag", split:"Revienta {n} globos divididos", gold:"Revienta {n} globos dorados", combo:"Consigue un combo x{n}", score:"Consigue {n} puntos en una partida", games:"Juega {n} partidas", buy:"Artículos comprados en la tienda: {n}" }
+    },
+    pt: {
+      r2:"Não toque nos balões com espinhos: eles custam uma vida.",
+      r3:"Se 3 balões normais escaparem acima da linha tracejada, você perde. Tocar no vazio quebra a sequência.",
+      r5:"Balões zigue-zague mudam de direção, balões divididos se partem em dois e balões dourados dão moedas.",
+      danger:"você perde se 3 balões normais escaparem",
+      overMissed:"3 balões escaparam", overTime:"O tempo acabou", overQuit:"Você encerrou a partida",
+      how:"Como jogar", modeLbl:"Modo de jogo", diffLbl:"Dificuldade",
+      modeNames:["Clássico","Cronometrado","Zen"],
+      modeHints:["3 vidas e no máximo 3 balões escapando","Maior pontuação em 60 segundos","Sem vidas e sem bombas, só estoure e relaxe"],
+      diffNames:["Fácil","Normal","Difícil"],
+      shop:"Loja", missions:"Missões", ach:"Conquistas",
+      shopSkins:"Estilos de balão", shopFx:"Efeitos de estouro",
+      owned:"Você tem", equip:"Escolher", equipped:"Escolhido", noCoins:"Moedas insuficientes", bought:"Comprado!",
+      dailyTitle:"Missões diárias", dailyNote:"Renovam todo dia.",
+      toastAch:"Conquista desbloqueada", toastMission:"Missão concluída",
+      quit:"Encerrar", coinsEarned:"moedas",
+      skinNames:["Clássico","Pastel","Neon","Doce"],
+      fxNames:["Padrão","Confete","Brilho dourado","Gelo"],
+      tpl:{ pops:"Estoure {n} balões", zigzag:"Estoure {n} balões zigue-zague", split:"Estoure {n} balões divididos", gold:"Estoure {n} balões dourados", combo:"Faça um combo x{n}", score:"Faça {n} pontos em uma partida", games:"Jogue {n} partidas", buy:"Itens comprados na loja: {n}" }
+    },
+    ru: {
+      r2:"Не трогай шары с шипами: они отнимают жизнь.",
+      r3:"Если 3 обычных шара пролетят за пунктирную линию вверху, ты проиграешь. Касание пустоты прерывает серию.",
+      r5:"Зигзагообразные шары меняют направление, делящиеся шары распадаются надвое, золотые шары дают монеты.",
+      danger:"ты проиграешь, если улетят 3 обычных шара",
+      overMissed:"Улетели 3 шара", overTime:"Время вышло", overQuit:"Ты закончил игру",
+      how:"Как играть", modeLbl:"Режим игры", diffLbl:"Сложность",
+      modeNames:["Классика","На время","Дзен"],
+      modeHints:["3 жизни и не более 3 упущенных шаров","Максимум очков за 60 секунд","Без жизней и бомб, просто лопай и отдыхай"],
+      diffNames:["Лёгкая","Обычная","Сложная"],
+      shop:"Магазин", missions:"Задания", ach:"Достижения",
+      shopSkins:"Стили шаров", shopFx:"Эффекты лопанья",
+      owned:"Есть", equip:"Выбрать", equipped:"Выбрано", noCoins:"Недостаточно монет", bought:"Куплено!",
+      dailyTitle:"Ежедневные задания", dailyNote:"Обновляются каждый день.",
+      toastAch:"Достижение открыто", toastMission:"Задание выполнено",
+      quit:"Завершить", coinsEarned:"монет",
+      skinNames:["Классика","Пастель","Неон","Конфета"],
+      fxNames:["Обычный","Конфетти","Золотое сияние","Лёд"],
+      tpl:{ pops:"Лопни шары: {n}", zigzag:"Лопни зигзагообразные шары: {n}", split:"Лопни делящиеся шары: {n}", gold:"Лопни золотые шары: {n}", combo:"Набери комбо x{n}", score:"Очков за одну игру: {n}", games:"Сыграй игр: {n}", buy:"Куплено предметов в магазине: {n}" }
+    },
+    de: {
+      r2:"Berühre keine Stachelballons: Sie kosten ein Leben.",
+      r3:"Entkommen 3 normale Ballons über die gestrichelte Linie oben, hast du verloren. Ein Tipp ins Leere unterbricht deine Serie.",
+      r5:"Zickzack-Ballons ändern die Richtung, Teilungsballons zerfallen in zwei, Goldballons geben Münzen.",
+      danger:"du verlierst, wenn 3 normale Ballons entkommen",
+      overMissed:"3 Ballons sind entkommen", overTime:"Die Zeit ist um", overQuit:"Du hast die Runde beendet",
+      how:"So wird gespielt", modeLbl:"Spielmodus", diffLbl:"Schwierigkeit",
+      modeNames:["Klassik","Zeitlimit","Zen"],
+      modeHints:["3 Leben, höchstens 3 entkommene Ballons","Höchste Punktzahl in 60 Sekunden","Keine Leben, keine Bomben, einfach platzen lassen"],
+      diffNames:["Leicht","Normal","Schwer"],
+      shop:"Shop", missions:"Missionen", ach:"Erfolge",
+      shopSkins:"Ballonstile", shopFx:"Platz-Effekte",
+      owned:"Im Besitz", equip:"Wählen", equipped:"Gewählt", noCoins:"Nicht genug Münzen", bought:"Gekauft!",
+      dailyTitle:"Tägliche Missionen", dailyNote:"Erneuern sich jeden Tag.",
+      toastAch:"Erfolg freigeschaltet", toastMission:"Mission abgeschlossen",
+      quit:"Beenden", coinsEarned:"Münzen",
+      skinNames:["Klassisch","Pastell","Neon","Bonbon"],
+      fxNames:["Standard","Konfetti","Goldglanz","Eis"],
+      tpl:{ pops:"Lass {n} Ballons platzen", zigzag:"Lass {n} Zickzack-Ballons platzen", split:"Lass {n} Teilungsballons platzen", gold:"Lass {n} Goldballons platzen", combo:"Erreiche eine x{n}-Combo", score:"Erreiche {n} Punkte in einem Spiel", games:"Spiele {n} Spiele", buy:"Im Shop gekaufte Artikel: {n}" }
+    },
+    fr: {
+      r2:"Ne touche pas les ballons à piques : ils te coûtent une vie.",
+      r3:"Si 3 ballons normaux s’échappent au-dessus de la ligne pointillée, tu perds. Toucher dans le vide casse ta série.",
+      r5:"Les ballons zigzag changent de direction, les ballons divisés se partagent en deux et les ballons dorés donnent des pièces.",
+      danger:"tu perds si 3 ballons normaux s’échappent",
+      overMissed:"3 ballons se sont échappés", overTime:"Temps écoulé", overQuit:"Tu as terminé la partie",
+      how:"Comment jouer", modeLbl:"Mode de jeu", diffLbl:"Difficulté",
+      modeNames:["Classique","Chrono","Zen"],
+      modeHints:["3 vies et 3 ballons échappés maximum","Meilleur score en 60 secondes","Sans vies ni bombes, éclate et détends-toi"],
+      diffNames:["Facile","Normal","Difficile"],
+      shop:"Boutique", missions:"Missions", ach:"Succès",
+      shopSkins:"Styles de ballon", shopFx:"Effets d’éclatement",
+      owned:"Possédé", equip:"Choisir", equipped:"Choisi", noCoins:"Pas assez de pièces", bought:"Acheté !",
+      dailyTitle:"Missions du jour", dailyNote:"Renouvelées chaque jour.",
+      toastAch:"Succès débloqué", toastMission:"Mission accomplie",
+      quit:"Terminer", coinsEarned:"pièces",
+      skinNames:["Classique","Pastel","Néon","Bonbon"],
+      fxNames:["Par défaut","Confettis","Éclat doré","Glace"],
+      tpl:{ pops:"Éclate {n} ballons", zigzag:"Éclate {n} ballons zigzag", split:"Éclate {n} ballons divisés", gold:"Éclate {n} ballons dorés", combo:"Atteins un combo x{n}", score:"Marque {n} points en une partie", games:"Joue {n} parties", buy:"Articles achetés dans la boutique : {n}" }
+    },
+    id: {
+      r2:"Jangan sentuh balon berduri, itu mengurangi satu nyawa.",
+      r3:"Jika 3 balon biasa lolos melewati garis putus-putus di atas, kamu kalah. Mengetuk area kosong memutus rangkaianmu.",
+      r5:"Balon zig-zag berganti arah, balon pecah-dua terbelah menjadi dua, dan balon emas memberi koin.",
+      danger:"kamu kalah jika 3 balon biasa lolos",
+      overMissed:"3 balon lolos", overTime:"Waktu habis", overQuit:"Kamu mengakhiri permainan",
+      how:"Cara bermain", modeLbl:"Mode permainan", diffLbl:"Tingkat kesulitan",
+      modeNames:["Klasik","Berwaktu","Zen"],
+      modeHints:["3 nyawa, maksimal 3 balon lolos","Skor tertinggi dalam 60 detik","Tanpa nyawa dan bom, pecahkan santai saja"],
+      diffNames:["Mudah","Normal","Sulit"],
+      shop:"Toko", missions:"Misi", ach:"Pencapaian",
+      shopSkins:"Gaya balon", shopFx:"Efek pecah",
+      owned:"Dimiliki", equip:"Pilih", equipped:"Dipilih", noCoins:"Koin tidak cukup", bought:"Terbeli!",
+      dailyTitle:"Misi harian", dailyNote:"Diperbarui setiap hari.",
+      toastAch:"Pencapaian terbuka", toastMission:"Misi selesai",
+      quit:"Akhiri", coinsEarned:"koin",
+      skinNames:["Klasik","Pastel","Neon","Permen"],
+      fxNames:["Bawaan","Konfeti","Kilau emas","Es"],
+      tpl:{ pops:"Pecahkan {n} balon", zigzag:"Pecahkan {n} balon zig-zag", split:"Pecahkan {n} balon pecah-dua", gold:"Pecahkan {n} balon emas", combo:"Capai kombo x{n}", score:"Raih {n} poin dalam satu permainan", games:"Mainkan {n} permainan", buy:"Barang dibeli di toko: {n}" }
+    }
+  };
+  Object.keys(EXTRA).forEach(k => Object.assign(I18N[k], EXTRA[k]));
   let lang = 'tr', langChosen = false;
   try {
     const l = localStorage.getItem('balon-lang');
@@ -557,7 +830,14 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   let time = 0, tAll = 0, wind = 0, windHigh = false, curMult = 1;
   let spawnTimer = 0.4, shake = 0, flash = 0;
   let best = 0;
-  try { best = parseInt(localStorage.getItem('balon-best') || '0', 10) || 0; } catch (e) {}
+  let mode = 'classic', diff = 'normal', missed = 0, timeLeft = 60, lastTimeSec = 60, saveTimer = 0, dirtySave = false;
+  let run = { gold:0, coins:0 };
+  const MISS_LIMIT = 3, TIMED_SECONDS = 60, GOLD_COINS = 5;
+  try {
+    const m0 = localStorage.getItem('balon-mode'), d0 = localStorage.getItem('balon-diff');
+    if (m0 === 'classic' || m0 === 'timed' || m0 === 'zen') mode = m0;
+    if (d0 === 'easy' || d0 === 'normal' || d0 === 'hard') diff = d0;
+  } catch (e) {}
 
   let balloons = [], parts = [], rings = [], texts = [], delayed = [];
   const bokeh = [], windLines = [];
@@ -598,6 +878,9 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
         g = x.createLinearGradient(-r, -ry, r, ry);
         RAINBOW.forEach((cc, i) => g.addColorStop(i / (RAINBOW.length - 1), cc));
       }
+    } else if (kind === 'gold') {
+      g = x.createRadialGradient(-r * .3, -ry * .35, r * .1, 0, 0, ry * 1.1);
+      g.addColorStop(0, '#fff6c2'); g.addColorStop(.5, '#ffcf33'); g.addColorStop(1, '#a8740a');
     } else {
       g = x.createRadialGradient(-r * .3, -ry * .35, r * .1, 0, 0, ry * 1.1);
       g.addColorStop(0, col.l); g.addColorStop(.5, col.m); g.addColorStop(1, col.d);
@@ -605,7 +888,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     x.fillStyle = g;
     x.beginPath(); x.ellipse(0, 0, r, ry, 0, 0, Math.PI * 2); x.fill();
 
-    x.fillStyle = kind === 'bomb' ? '#120d26' : kind === 'stone' ? '#4d5469' : kind === 'rainbow' ? '#8a5bd6' : col.d;
+    x.fillStyle = kind === 'bomb' ? '#120d26' : kind === 'stone' ? '#4d5469' : kind === 'rainbow' ? '#8a5bd6' : kind === 'gold' ? '#a8740a' : col.d;
     x.beginPath(); x.moveTo(0, ry - 2); x.lineTo(-5, ry + 8); x.lineTo(5, ry + 8); x.closePath(); x.fill();
 
     if (kind === 'bomb') {
@@ -620,6 +903,25 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
         x.strokeStyle = '#2b3144'; x.lineWidth = 2.2;
         x.beginPath(); x.moveTo(-r * 0.1, -ry * 0.55); x.lineTo(r * 0.1, -ry * 0.2); x.lineTo(-r * 0.12, 0); x.lineTo(r * 0.14, ry * 0.3); x.lineTo(0, ry * 0.55); x.stroke();
       }
+    } else if (kind === 'zig') {
+      x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = Math.max(2, r * 0.1); x.lineJoin = 'round'; x.lineCap = 'round';
+      x.beginPath();
+      [[-.62, 0], [-.31, -.22], [0, .22], [.31, -.22], [.62, 0]].forEach((pt, i) => {
+        if (i === 0) x.moveTo(pt[0] * r, pt[1] * ry); else x.lineTo(pt[0] * r, pt[1] * ry);
+      });
+      x.stroke();
+    } else if (kind === 'spl') {
+      x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = Math.max(2, r * 0.08); x.lineCap = 'round';
+      x.beginPath(); x.moveTo(0, -ry * 0.96); x.bezierCurveTo(r * 0.2, -ry * 0.4, -r * 0.2, ry * 0.4, 0, ry * 0.96); x.stroke();
+    } else if (kind === 'gold') {
+      x.fillStyle = 'rgba(150,95,0,.85)';
+      x.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 === 0 ? r * 0.5 : r * 0.21;
+        const px = Math.cos(a) * rr, py = Math.sin(a) * rr + ry * 0.02;
+        if (i === 0) x.moveTo(px, py); else x.lineTo(px, py);
+      }
+      x.closePath(); x.fill();
     }
     x.fillStyle = 'rgba(255,255,255,' + (kind === 'bomb' ? 0.2 : 0.5) + ')';
     x.beginPath(); x.ellipse(-r * 0.4, -ry * 0.48, r * 0.14, ry * 0.26, -0.5, 0, Math.PI * 2); x.fill();
@@ -660,10 +962,18 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     }
     return s;
   }
+  function kindOf(b) {
+    switch (b.type) {
+      case 'normal': case 'grow': return 'c';
+      case 'zigzag': return 'zig';
+      case 'split': return 'spl';
+      default: return b.type;
+    }
+  }
   function getBody(b) {
     const bucket = Math.max(5, Math.round(b.r / 3));
-    const kind = (b.type === 'normal' || b.type === 'grow') ? 'c' : b.type;
-    const ci = kind === 'c' ? b.c : -1;
+    const kind = kindOf(b);
+    const ci = (kind === 'c' || kind === 'zig' || kind === 'spl') ? b.c : -1;
     const hp = b.type === 'stone' ? b.hp : 0;
     const key = kind + '|' + ci + '|' + hp + '|' + bucket;
     let s = spriteCache.get(key);
@@ -728,23 +1038,28 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   }
   function warmTexts() {
     const L = LL();
-    COL.forEach(c => [10, 25, 30].forEach(base => [1, 2, 4, 8].forEach(m => textSprite('+' + (base * m), c.l, 20 + m * 2.5))));
-    [1, 2, 4, 8].forEach(m => textSprite('+' + (40 * m), '#ffffff', 20 + m * 2.5));
-    ['x2!', 'x4!', 'x8!'].forEach(s => textSprite(s, '#ffd23f', 46));
-    textSprite('-100', '#ff8a9b', 30); textSprite(L.bomb, '#ff9a85', 30);
+    const bases = [200, 250, 150, 300, 500, 600, 800, 400];
+    COL.forEach(c => bases.forEach(base => [1, 2, 4, 8].forEach(m => textSprite('+' + (base * m), c.l, 20 + m * 2.5))));
+    [1, 2, 4, 8].forEach(m => [800, 400].forEach(base => textSprite('+' + (base * m), '#ffffff', 20 + m * 2.5)));
+    ['x2!', 'x4!', 'x8!'].forEach(sx => textSprite(sx, '#ffd23f', 46));
+    textSprite('!', '#ff8a9b', 38); textSprite('-5s', '#ff8a9b', 40); textSprite('+5', '#ffd23f', 30);
+    textSprite(L.bomb, '#ff9a85', 30);
     textSprite(L.top, '#ffffff', 26); textSprite(L.broken, '#ffffff', 18);
     textSprite(L.windR, '#bfeaff', 46); textSprite(L.windL, '#bfeaff', 46);
   }
   function warm() {
-    const lo = Math.max(5, Math.round(baseR * 0.85 / 3)), hi = Math.round(baseR * 1.15 / 3);
+    const lo = Math.max(5, Math.round(baseR * 0.85 / 3)), hi = Math.round(baseR * 1.3 / 3);
     const fake = { r: 0, c: 0, type: 'normal', hp: 0 };
     for (let k = lo; k <= hi; k++) {
-      fake.r = k * 3;
-      fake.type = 'bomb'; fake.c = -1; fake.hp = 0; getBody(fake); getSpikes(fake.r);
+      fake.r = k * 3; fake.hp = 0; fake.c = -1;
+      fake.type = 'bomb'; getBody(fake); getSpikes(fake.r);
       fake.type = 'rainbow'; getBody(fake);
+      fake.type = 'gold'; getBody(fake);
       fake.type = 'stone'; fake.hp = 2; getBody(fake); fake.hp = 1; getBody(fake);
+      fake.hp = 0;
+      ['zigzag', 'split'].forEach(t => { fake.type = t; for (let ci = 0; ci < 3; ci++) { fake.c = ci; getBody(fake); } });
     }
-    const glo = Math.max(5, Math.round(baseR * 0.85 * 0.75 / 3)), ghi = Math.round(baseR * 1.15 * 1.3 / 3);
+    const glo = Math.max(5, Math.round(baseR * 0.85 * 0.62 / 3)), ghi = Math.round(baseR * 1.15 * 1.3 / 3);
     fake.type = 'normal'; fake.hp = 0;
     for (let k = glo; k <= ghi; k++) {
       fake.r = k * 3;
@@ -976,6 +1291,209 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     arr.length = j;
   }
 
+  /* ---------- kayıt, altın, görevler, başarımlar, mağaza ---------- */
+  const SAVE_KEY = 'balon-save-v1';
+  function defaultSave() {
+    return { coins:0, stats:{ pops:0, zigzag:0, split:0, gold:0, combo:1, score:0, games:0, buy:0 }, ach:{},
+      owned:{ skin:['classic'], fx:['default'] }, equip:{ skin:'classic', fx:'default' }, daily:{ date:'', missions:[] }, best:{} };
+  }
+  let save = defaultSave();
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      save = Object.assign(defaultSave(), o);
+      save.stats = Object.assign(defaultSave().stats, o.stats || {});
+      save.owned = Object.assign(defaultSave().owned, o.owned || {});
+      save.equip = Object.assign(defaultSave().equip, o.equip || {});
+      save.ach = o.ach || {}; save.best = o.best || {}; save.daily = o.daily || { date:'', missions:[] };
+    }
+  } catch (e) {}
+  function saveNow() { dirtySave = false; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+  function addCoins(n) { save.coins += n; dirtySave = true; updateHud(); }
+  const fmtN = n => Number(n).toLocaleString('en-US');
+  function goalText(type, n) { return LL().tpl[type].replace('{n}', ltr(fmtN(n))); }
+
+  const toastQ = []; let toastBusy = false;
+  function toast(msg) { toastQ.push(msg); if (!toastBusy) nextToast(); }
+  function nextToast() {
+    const m = toastQ.shift();
+    if (!m) { toastBusy = false; return; }
+    toastBusy = true;
+    const el = $('toast');
+    el.textContent = m; el.classList.add('show');
+    setTimeout(() => { el.classList.remove('show'); setTimeout(nextToast, 300); }, 2400);
+  }
+
+  const MISSION_POOL = [
+    { type:'pops',   targets:[40, 70, 110],        rewards:[40, 70, 110] },
+    { type:'zigzag', targets:[4, 7, 12],           rewards:[50, 80, 120] },
+    { type:'split',  targets:[4, 7, 12],           rewards:[50, 80, 120] },
+    { type:'gold',   targets:[2, 3, 5],            rewards:[50, 80, 120] },
+    { type:'combo',  targets:[4, 8, 8],            rewards:[40, 80, 100] },
+    { type:'score',  targets:[8000, 16000, 30000], rewards:[40, 80, 130] }
+  ];
+  const ACH = [
+    { id:'p1', type:'pops', target:100, reward:50 }, { id:'p2', type:'pops', target:1000, reward:150 }, { id:'p3', type:'pops', target:10000, reward:500 },
+    { id:'z1', type:'zigzag', target:25, reward:100 }, { id:'s1', type:'split', target:25, reward:100 },
+    { id:'g1', type:'gold', target:25, reward:150 }, { id:'g2', type:'gold', target:100, reward:400 },
+    { id:'c1', type:'combo', target:4, reward:60 }, { id:'c2', type:'combo', target:8, reward:200 },
+    { id:'sc1', type:'score', target:10000, reward:100 }, { id:'sc2', type:'score', target:50000, reward:300 }, { id:'sc3', type:'score', target:150000, reward:800 },
+    { id:'gm1', type:'games', target:10, reward:80 }, { id:'gm2', type:'games', target:50, reward:250 },
+    { id:'b1', type:'buy', target:1, reward:50 }, { id:'b2', type:'buy', target:5, reward:200 }
+  ];
+  function todayKey() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function hashStr(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function ensureDaily() {
+    const key = todayKey();
+    if (save.daily && save.daily.date === key && save.daily.missions.length === 3) return;
+    let h = hashStr(key);
+    const rnd = () => { h = (Math.imul(h, 1664525) + 1013904223) >>> 0; return h / 4294967296; };
+    const pool = MISSION_POOL.slice(), ms = [];
+    for (let i = 0; i < 3; i++) {
+      const pk = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
+      ms.push({ type:pk.type, target:pk.targets[i], reward:pk.rewards[i], progress:0, done:false });
+    }
+    save.daily = { date:key, missions:ms };
+    dirtySave = true;
+  }
+  const isMax = t => t === 'combo' || t === 'score';
+  function progress(type, v) {
+    const L = LL(), st = save.stats;
+    st[type] = isMax(type) ? Math.max(st[type] || 0, v) : (st[type] || 0) + v;
+    ensureDaily();
+    save.daily.missions.forEach(m => {
+      if (m.done || m.type !== type) return;
+      m.progress = isMax(type) ? Math.max(m.progress, v) : m.progress + v;
+      if (m.progress >= m.target) {
+        m.progress = m.target; m.done = true; addCoins(m.reward);
+        toast('🎯 ' + L.toastMission + ' · +' + ltr(m.reward) + ' 🪙');
+      }
+    });
+    ACH.forEach(a => {
+      if (save.ach[a.id] || a.type !== type || st[type] < a.target) return;
+      save.ach[a.id] = true; addCoins(a.reward);
+      toast('🏆 ' + L.toastAch + ': ' + goalText(a.type, a.target) + ' · +' + ltr(a.reward) + ' 🪙');
+    });
+    dirtySave = true;
+  }
+
+  function mixHex(a, b, t) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const f = (x, y) => Math.round(x + (y - x) * t);
+    const R = f((pa >> 16) & 255, (pb >> 16) & 255), G = f((pa >> 8) & 255, (pb >> 8) & 255), B = f(pa & 255, pb & 255);
+    return '#' + ((1 << 24) | (R << 16) | (G << 8) | B).toString(16).slice(1);
+  }
+  const mkPal = ms => ms.map(m => ({ m, l:mixHex(m, '#ffffff', 0.55), d:mixHex(m, '#000000', 0.38) }));
+  const SKINS = [
+    { id:'classic', price:0,   pal:COL.slice() },
+    { id:'pastel',  price:300, pal:mkPal(['#ff8fb8', '#7fe0c3', '#b3a0ff']) },
+    { id:'neon',    price:500, pal:mkPal(['#ff2bd6', '#00e5ff', '#a6ff00']) },
+    { id:'candy',   price:800, pal:mkPal(['#ff8a3d', '#8e5bff', '#12d6a0']) }
+  ];
+  const FXS = [
+    { id:'default',  price:0,   colors:null },
+    { id:'confetti', price:250, colors:['#ff4d6d', '#3da5ff', '#ffd23f', '#6dff9a', '#b46bff', '#ffffff'] },
+    { id:'gold',     price:400, colors:['#ffd23f', '#fff3b0', '#ffffff', '#ffb347'] },
+    { id:'ice',      price:400, colors:['#bfeaff', '#7cc8ff', '#ffffff', '#a8d8ff'] }
+  ];
+  function applySkin() {
+    const sk = SKINS.find(x => x.id === save.equip.skin) || SKINS[0];
+    COL = sk.pal;
+    resetCaches();
+  }
+
+  function clearEl(el) { el.innerHTML = ''; }
+  function shopRow(kind, it, name, cols) {
+    const L = LL();
+    const owned = save.owned[kind].includes(it.id), eq = save.equip[kind] === it.id;
+    const row = document.createElement('div'); row.className = 'item';
+    const pv = document.createElement('div'); pv.className = 'pv';
+    cols.forEach(cc => { const i = document.createElement('i'); i.style.background = cc; pv.appendChild(i); });
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = name;
+    const bt = document.createElement('button'); bt.className = 'st' + (eq ? ' on' : '');
+    bt.textContent = eq ? L.equipped : owned ? L.equip : '🪙 ' + ltr(fmtN(it.price));
+    bt.onclick = () => buyItem(kind, it);
+    row.appendChild(pv); row.appendChild(nm); row.appendChild(bt);
+    return row;
+  }
+  function renderShop() {
+    const L = LL(), list = $('shopList');
+    clearEl(list);
+    $('shopCoins').textContent = '🪙 ' + ltr(fmtN(save.coins));
+    const sect = t => { const d = document.createElement('div'); d.className = 'sect'; d.textContent = t; list.appendChild(d); };
+    sect(L.shopSkins);
+    SKINS.forEach((it, i) => list.appendChild(shopRow('skin', it, L.skinNames[i], it.pal.map(cc => cc.m))));
+    sect(L.shopFx);
+    FXS.forEach((it, i) => list.appendChild(shopRow('fx', it, L.fxNames[i], (it.colors || ['#ff4d6d', '#3da5ff', '#ffd23f']).slice(0, 3))));
+  }
+  function buyItem(kind, it) {
+    const L = LL();
+    if (!save.owned[kind].includes(it.id)) {
+      if (save.coins < it.price) { toast(L.noCoins); return; }
+      save.coins -= it.price; save.owned[kind].push(it.id);
+      progress('buy', 1);
+      toast(L.bought);
+    }
+    save.equip[kind] = it.id;
+    dirtySave = true; saveNow();
+    if (kind === 'skin') applySkin();
+    updateHud(); renderShop();
+  }
+  function goalRow(text, prog, target, rewardText, done) {
+    const row = document.createElement('div'); row.className = 'item' + (done ? ' done' : '');
+    const body = document.createElement('div'); body.className = 'nm';
+    const t = document.createElement('div'); t.textContent = text;
+    const bar = document.createElement('div'); bar.className = 'pbar';
+    const fill = document.createElement('i'); fill.style.width = Math.min(100, Math.round(100 * prog / target)) + '%';
+    bar.appendChild(fill); body.appendChild(t); body.appendChild(bar);
+    const rw = document.createElement('div'); rw.className = 'rw'; rw.textContent = (done ? '✓ ' : '') + rewardText;
+    row.appendChild(body); row.appendChild(rw);
+    return row;
+  }
+  function renderMissions() {
+    const list = $('missionList');
+    clearEl(list); ensureDaily();
+    save.daily.missions.forEach(m => list.appendChild(goalRow(goalText(m.type, m.target), m.progress, m.target, '🪙 ' + ltr(m.reward), m.done)));
+  }
+  function renderAch() {
+    const list = $('achList');
+    clearEl(list);
+    let n = 0;
+    ACH.forEach(a => {
+      const done = !!save.ach[a.id]; if (done) n++;
+      list.appendChild(goalRow(goalText(a.type, a.target), save.stats[a.type] || 0, a.target, '🪙 ' + ltr(a.reward), done));
+    });
+    $('achCount').textContent = ltr(n + '/' + ACH.length);
+  }
+  function renderLists() { renderShop(); renderMissions(); renderAch(); }
+
+  function initSystems() {
+    ensureDaily();
+    refreshBest();
+    if (save.equip.skin !== 'classic') applySkin();
+    const pick = e => (e.target && e.target.closest ? e.target.closest('button') : null);
+    $('modeseg').addEventListener('click', e => {
+      const b = pick(e);
+      if (b && b.dataset.mode) { mode = b.dataset.mode; try { localStorage.setItem('balon-mode', mode); } catch (er) {} refreshBest(); refreshModeUi(); }
+    });
+    $('diffseg').addEventListener('click', e => {
+      const b = pick(e);
+      if (b && b.dataset.diff) { diff = b.dataset.diff; try { localStorage.setItem('balon-diff', diff); } catch (er) {} refreshBest(); refreshModeUi(); }
+    });
+    $('openShop').addEventListener('click', () => { renderShop(); showPanel('pShop'); });
+    $('openMis').addEventListener('click', () => { renderMissions(); showPanel('pMissions'); });
+    $('openAch').addEventListener('click', () => { renderAch(); showPanel('pAch'); });
+    ['backShop', 'backMis', 'backAch'].forEach(id => $(id).addEventListener('click', () => { renderMenu(); showPanel('pMenu'); }));
+    $('quitRun').addEventListener('click', () => {
+      if (!gamePaused) return;
+      gamePaused = false; last = performance.now(); acc = 0;
+      hideOverlay();
+      if (ac && !document.hidden) ac.resume();
+      gameOver('quit');
+    });
+  }
+
   /* ---------- HUD (karede en fazla bir kez güncellenir) ---------- */
   const elScore = $('score'), elBest = $('best'), elCombo = $('combo'), elMx = $('mx'), elStreak = $('streak');
   const elBar = $('bar').firstElementChild, elFps = $('fps');
@@ -984,14 +1502,34 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   const hs = { score: null, best: null, lives: null, streak: null };
   let hudDirty = true;
   function updateHud() { hudDirty = true; }
+  const elCoins = $('coins'), elTimer = $('timer'), elMissed = $('missed');
   function flushHud() {
     if (!hudDirty) return;
     hudDirty = false;
     const L = LL();
-    if (hs.score !== score) { elScore.textContent = ltr(score); elScore.classList.toggle('neg', score < 0); hs.score = score; }
+    if (hs.score !== score) {
+      elScore.textContent = ltr(fmtN(score));
+      elScore.style.fontSize = score >= 100000 ? '30px' : score >= 10000 ? '36px' : '';
+      hs.score = score;
+    }
     const bst = Math.max(best, score);
-    if (hs.best !== bst) { elBest.textContent = L.bestHud + ' ' + ltr(bst); hs.best = bst; }
-    if (hs.lives !== lives) { [...livesEl.children].forEach((el, i) => el.classList.toggle('off', i >= lives)); hs.lives = lives; }
+    if (hs.best !== bst) { elBest.textContent = L.bestHud + ' ' + ltr(fmtN(bst)); hs.best = bst; }
+    if (hs.coins !== save.coins) { elCoins.textContent = '🪙 ' + ltr(fmtN(save.coins)); hs.coins = save.coins; }
+    const classic = mode === 'classic';
+    if (hs.classic !== classic) {
+      livesEl.style.display = classic ? '' : 'none';
+      elMissed.style.display = classic ? 'block' : 'none';
+      hs.classic = classic;
+    }
+    if (mode === 'timed') {
+      const ts = Math.ceil(timeLeft);
+      if (hs.time !== ts || elTimer.style.display !== 'block') { elTimer.style.display = 'block'; elTimer.textContent = '⏱ ' + ts; hs.time = ts; }
+    } else if (elTimer.style.display !== 'none') { elTimer.style.display = 'none'; hs.time = null; }
+    if (classic) {
+      if (hs.lives !== lives) { [...livesEl.children].forEach((el, i) => el.classList.toggle('off', i >= lives)); hs.lives = lives; }
+      const ms = missed + '/' + MISS_LIMIT;
+      if (hs.missed !== ms) { elMissed.textContent = '🎈 ' + ltr(ms); hs.missed = ms; }
+    }
     if (hs.streak !== streak) {
       elCombo.classList.toggle('on', streak > 0);
       elMx.textContent = 'x' + mult();
@@ -1003,7 +1541,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   }
 
   /* ---------- ekranlar (paneller) ---------- */
-  const PANELS = ['pLang', 'pMenu', 'pPause', 'pSet', 'pRevive'];
+  const PANELS = ['pLang', 'pMenu', 'pPause', 'pSet', 'pRevive', 'pShop', 'pMissions', 'pAch'];
   let settingsFrom = 'pMenu';
   function showPanel(id) {
     PANELS.forEach(p => $(p).classList.toggle('off', p !== id));
@@ -1012,20 +1550,31 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   function hideOverlay() { $('overlay').classList.add('hidden'); }
   function updatePauseBtn() { $('pause').classList.toggle('show', state === 'play' && !gamePaused); }
 
+  const MODES = ['classic', 'timed', 'zen'], DIFFS = ['easy', 'normal', 'hard'];
+  function refreshBest() { best = save.best[mode + '-' + diff] || 0; hs.best = null; updateHud(); }
+  function refreshModeUi() {
+    const L = LL();
+    MODES.forEach((m, i) => { $('m' + i).textContent = L.modeNames[i]; $('m' + i).classList.toggle('on', mode === m); });
+    DIFFS.forEach((d, i) => { $('d' + i).textContent = L.diffNames[i]; $('d' + i).classList.toggle('on', diff === d); });
+    $('modehint').textContent = L.modeHints[MODES.indexOf(mode)];
+  }
   function renderMenu() {
     const L = LL();
     if (state === 'over' && overInfo) {
-      $('ttl').textContent = overInfo.byScore ? L.lost : L.over;
-      $('sub').textContent = (overInfo.byScore ? L.overScore : L.overLives) + ' · ' + L.scoreWord + ' ' + ltr(overInfo.score) +
-        ' · ' + (overInfo.record ? L.newRecord : L.bestWord + ' ' + ltr(overInfo.best));
-      $('rules').style.display = 'none';
+      const o = overInfo;
+      $('ttl').textContent = (o.reason === 'lives' || o.reason === 'missed') ? L.lost : L.over;
+      const why = o.reason === 'lives' ? L.overLives : o.reason === 'missed' ? L.overMissed : o.reason === 'time' ? L.overTime : L.overQuit;
+      $('sub').textContent = why + ' · ' + L.scoreWord + ' ' + ltr(fmtN(o.score)) + ' · +' + ltr(o.coins) + ' ' + L.coinsEarned +
+        ' · ' + (o.record ? L.newRecord : L.bestWord + ' ' + ltr(fmtN(o.best)));
+      $('how').style.display = 'none';
       $('go').textContent = L.again;
     } else {
       $('ttl').textContent = 'BalloonRush';
       $('sub').textContent = L.sub;
-      $('rules').style.display = '';
+      $('how').style.display = '';
       $('go').textContent = L.start;
     }
+    refreshModeUi();
   }
 
   /* ---------- ayarlar: dil, grafik, arka plan ---------- */
@@ -1072,8 +1621,9 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     const L = LL();
     document.documentElement.lang = lang;
     document.documentElement.dir = L.dir;
-    ['r1', 'r2', 'r3', 'r4'].forEach(k => { $(k).textContent = L[k]; });
-    $('openSet').textContent = L.settings; $('openSet2').textContent = L.settings;
+    ['r1', 'r2', 'r3', 'r4', 'r5'].forEach(k => { $(k).textContent = L[k]; });
+    document.querySelectorAll('[data-i18n]').forEach(e => { e.textContent = (e.dataset.ico ? e.dataset.ico + ' ' : '') + L[e.dataset.i18n]; });
+    renderLists();
     $('setTitle').textContent = L.setTitle; $('lblLang').textContent = L.lblLang;
     $('lblGfx').textContent = L.lblGfx; $('lblBg').textContent = L.lblBg;
     $('back').textContent = L.back; $('pauseTitle').textContent = L.pauseTitle;
@@ -1159,40 +1709,74 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     texts.push({ x, y, s, color, size:size||24, life:life||0.8, ml:life||0.8, vy:vy||-60 });
   }
   function banner(s, color) { floatText(W / 2, H * 0.36, s, color || '#ffd23f', 46, 1.0, -36); }
+  function fxColors() {
+    const f = FXS.find(x => x.id === save.equip.fx);
+    return f && f.colors ? f.colors : null;
+  }
   function colorsOf(b) {
+    const fx = fxColors();
+    if (fx) return fx;
     if (b.c >= 0) return [COL[b.c].m, COL[b.c].l, '#ffffff'];
-    return RAINBOW;
+    return b.type === 'gold' ? ['#ffd23f', '#fff3b0', '#ffffff'] : RAINBOW;
   }
 
   /* ---------- oyun mantığı ---------- */
+  const DIFF = {
+    easy:   { speed:1.00, gap:1.25, n0:2, hazard:0.7 },
+    normal: { speed:1.12, gap:1.00, n0:3, hazard:1.0 },
+    hard:   { speed:1.38, gap:0.78, n0:4, hazard:1.7 }
+  };
+  const isColored = o => o.type === 'normal' || o.type === 'grow' || o.type === 'zigzag' || o.type === 'split';
+  const curDiff = () => (mode === 'zen' ? 'easy' : diff);
+  function waveSize() {
+    const d = curDiff();
+    let n = DIFF[d].n0;
+    const st = d === 'easy' ? [50, 100] : d === 'normal' ? [30, 60] : [20, 45];
+    if (time > st[0]) n++;
+    if (time > st[1]) n++;
+    return n;
+  }
   function spawn(decor, avoid, tight) {
-    const r = baseR * (0.85 + Math.random() * 0.3);
-    const margin = r + 8;
-    const gap = r * 2 + baseR * (tight ? 0.3 : 1.2);
+    const r0 = baseR * (0.85 + Math.random() * 0.3);
+    const margin = r0 + 8;
+    const gap = r0 * 2 + baseR * (tight ? 0.3 : 1.2);
     let x, tries = 0;
     do {
       x = margin + Math.random() * Math.max(1, W - margin * 2);
       tries++;
     } while (avoid && avoid.some(ax => Math.abs(x - ax) < gap) && tries < 60);
+    const dk = curDiff(), D = DIFF[dk];
     let type = 'normal';
     if (!decor) {
-      const pR = time > 15 ? 0.018 : 0;
-      const pB = time > 10 ? Math.min(0.22, 0.06 + (time - 10) * 0.004) : 0;
-      const pG = time > 14 ? Math.min(0.28, 0.06 + (time - 14) * 0.005) : 0;
-      const pS = time > 24 ? Math.min(0.12, 0.04 + (time - 24) * 0.002) : 0;
+      const hz = D.hazard, zen = mode === 'zen';
+      const p = {
+        rainbow: time > 15 ? 0.018 : 0,
+        bomb: (!zen && time > (dk === 'hard' ? 6 : 10)) ? Math.min(0.26, Math.max(0.04, 0.06 + (time - 10) * 0.004) * hz) : 0,
+        grow: time > 14 ? Math.min(0.26, 0.06 + (time - 14) * 0.005) : 0,
+        stone: time > 24 ? Math.min(0.12, 0.04 + (time - 24) * 0.002) : 0,
+        zigzag: time > 10 ? Math.min(0.18, (0.05 + (time - 10) * 0.004) * (hz > 1 ? 1.2 : 1)) : 0,
+        split: time > 16 ? Math.min(0.12, 0.04 + (time - 16) * 0.003) : 0,
+        gold: time > 6 ? 0.03 : 0
+      };
+      let sum = 0;
+      for (const k in p) sum += p[k];
+      const sc = sum > 0.85 ? 0.85 / sum : 1;
       const roll = Math.random();
-      if (roll < pR) type = 'rainbow';
-      else if (roll < pR + pB) type = 'bomb';
-      else if (roll < pR + pB + pG) type = 'grow';
-      else if (roll < pR + pB + pG + pS) type = 'stone';
+      let acc2 = 0;
+      for (const k in p) { acc2 += p[k] * sc; if (roll < acc2) { type = k; break; } }
     }
-    const base = decor ? H * 0.23 : H * 0.23 + Math.min(time, 120) * H * 0.00165;
-    const sp = base * (0.88 + Math.random() * 0.28);
-    const c = (type === 'rainbow' || type === 'bomb') ? -1 : (Math.random() * 3) | 0;
+    const base = decor ? H * 0.23 : H * 0.23 * D.speed + Math.min(time, 120) * H * 0.0016 * (dk === 'hard' ? 1.25 : 1);
+    let sp = base * (0.88 + Math.random() * 0.28);
+    if (type === 'gold') sp *= 1.3;
+    const colored = type !== 'rainbow' && type !== 'bomb' && type !== 'gold';
+    const c = colored ? (Math.random() * 3) | 0 : -1;
+    let r = r0;
+    if (type === 'grow') r = r0 * 0.75; else if (type === 'split') r = r0 * 1.1; else if (type === 'gold') r = r0 * 0.9;
     const nb = {
-      x, y:H + r + 30 + (avoid ? Math.random() * 90 : 0), r:type === 'grow' ? r * 0.75 : r, baseR:r, type, c,
-      vy:-sp, ph:Math.random() * 6.28, sw:18 + Math.random() * 16,
-      hp:type === 'stone' ? 2 : 1, hitT:0, dead:false, locked:false
+      x, y:H + r + 30 + (avoid ? Math.random() * 90 : 0), r, baseR:r0, type, c,
+      vy:-sp, vx:0, ph:Math.random() * 6.28, sw:18 + Math.random() * 16,
+      hp:type === 'stone' ? 2 : 1, hitT:0, dead:false, locked:false, child:false,
+      zdir:Math.random() < 0.5 ? -1 : 1, zt:Math.random() * 0.4
     };
     balloons.push(nb);
     return nb;
@@ -1202,7 +1786,19 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     const before = mult();
     streak++;
     const after = mult();
-    if (after > before) { banner('x' + after + '!', '#ffd23f'); flash = Math.max(flash, 0.18); }
+    if (after > before) { banner('x' + after + '!', '#ffd23f'); flash = Math.max(flash, 0.18); progress('combo', after); }
+  }
+  function pointsFor(b) {
+    if (b.child) return 150;
+    switch (b.type) {
+      case 'grow': return 500;
+      case 'stone': return 600;
+      case 'rainbow': return 800;
+      case 'zigzag': return 300;
+      case 'split': return 250;
+      case 'gold': return 400;
+      default: return 200;
+    }
   }
   function award(b, base) {
     const gain = base * mult();
@@ -1210,22 +1806,53 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     floatText(b.x, b.y - b.r, '+' + gain, b.c >= 0 ? COL[b.c].l : '#ffffff', 20 + mult() * 2.5, 0.8, -70);
     updateHud();
   }
+  function spawnChildren(pb) {
+    for (let i = 0; i < 2; i++) {
+      const dir = i === 0 ? -1 : 1;
+      balloons.push({
+        x:pb.x + dir * pb.r * 0.4, y:pb.y, r:pb.r * 0.62, baseR:pb.baseR, type:'normal', c:pb.c,
+        vy:pb.vy * 1.05, vx:dir * 95, ph:Math.random() * 6.28, sw:18 + Math.random() * 16,
+        hp:1, hitT:0, dead:false, locked:false, child:true, zdir:1, zt:0
+      });
+    }
+  }
+  function afterPop(b) {
+    progress('pops', 1);
+    if (b.type === 'zigzag') progress('zigzag', 1);
+    if (b.type === 'split') { progress('split', 1); spawnChildren(b); }
+    if (b.type === 'gold') {
+      progress('gold', 1);
+      addCoins(GOLD_COINS); run.coins += GOLD_COINS; run.gold++;
+      floatText(b.x, b.y + b.r, '+' + GOLD_COINS, '#ffd23f', 30, 0.9, -60);
+    }
+  }
   function chainPop(o) {
     if (o.dead) return;
     o.dead = true;
     addStreak();
     burst(o.x, o.y, colorsOf(o), 14, 300);
     ring(o.x, o.y, o.r * 2, COL[o.c].l, 0.35);
-    award(o, 10);
+    award(o, pointsFor(o));
     popSound(streak);
+    afterPop(o);
   }
   function loseLife(kind) {
-    lives--; streak = 0; lastColor = -1;
+    if (mode !== 'zen') { streak = 0; lastColor = -1; }
     shake = kind === 'bomb' ? 20 : 14; flash = 0.45;
     vib(kind === 'bomb' ? [40, 30, 60] : [60]);
-    updateHud();
-    if (lives <= 0) gameOver('lives');
+    if (mode === 'classic') {
+      lives--;
+      updateHud();
+      if (lives <= 0) gameOver('lives');
+    } else if (mode === 'timed') {
+      timeLeft = Math.max(0, timeLeft - 5);
+      floatText(W / 2, H * 0.3, '-5s', '#ff8a9b', 40, 0.9, -30);
+      updateHud();
+    } else {
+      updateHud();
+    }
   }
+  function coinSound() { tone(988, 0.08, 'square', 0.07, 1, 0); tone(1319, 0.18, 'square', 0.07, 1, 0.08); }
 
   function hit(b) {
     if (b.type === 'bomb') {
@@ -1246,7 +1873,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     if (b.type === 'rainbow') {
       b.dead = true;
       const counts = [0, 0, 0];
-      balloons.forEach(o => { if (!o.dead && !o.locked && (o.type === 'normal' || o.type === 'grow')) counts[o.c]++; });
+      balloons.forEach(o => { if (!o.dead && !o.locked && isColored(o)) counts[o.c]++; });
       const mx = Math.max(counts[0], counts[1], counts[2]);
       const ci = mx === 0 ? (Math.random() * 3) | 0 : counts.indexOf(mx);
       burst(b.x, b.y, RAINBOW, 26, 380);
@@ -1254,12 +1881,22 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
       rainbowSound();
       lastColor = ci;
       addStreak();
-      award(b, 40);
-      const targets = balloons.filter(o => !o.dead && !o.locked && o.c === ci && (o.type === 'normal' || o.type === 'grow'));
+      award(b, pointsFor(b));
+      afterPop(b);
+      const targets = balloons.filter(o => !o.dead && !o.locked && o.c === ci && isColored(o));
       targets.forEach((o, i) => {
         o.locked = true;
         delayed.push({ t:0.08 * (i + 1), fn:() => chainPop(o) });
       });
+      return;
+    }
+    if (b.type === 'gold') {
+      b.dead = true;
+      burst(b.x, b.y, colorsOf(b), 22, 360);
+      ring(b.x, b.y, b.r * 3, '#ffd23f', 0.45);
+      coinSound();
+      award(b, pointsFor(b));
+      afterPop(b);
       return;
     }
     b.dead = true;
@@ -1267,8 +1904,9 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     lastColor = b.c;
     burst(b.x, b.y, colorsOf(b), 16, 320);
     ring(b.x, b.y, b.r * 2.2, COL[b.c].l, 0.35);
-    award(b, b.type === 'stone' ? 30 : b.type === 'grow' ? 25 : 10);
+    award(b, pointsFor(b));
     popSound(streak);
+    afterPop(b);
   }
 
   function tap(x, y) {
@@ -1298,10 +1936,13 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     gamePaused = false;
     if (ac && ac.state === 'suspended') ac.resume();
     startMusic();
-    score = 0; lives = 3; streak = 0; lastColor = -1; time = 0; wind = 0; windHigh = false;
+    ensureDaily();
+    score = 0; lives = 3; missed = 0; streak = 0; lastColor = -1; time = 0; wind = 0; windHigh = false;
+    timeLeft = TIMED_SECONDS; lastTimeSec = TIMED_SECONDS; run = { gold:0, coins:0 };
     balloons = []; parts = []; rings = []; texts = []; delayed = [];
     spawnTimer = 0.3; shake = 0; flash = 0; overInfo = null; reviveUsed = false;
     state = 'play';
+    refreshBest();
     hideOverlay();
     updatePauseBtn();
     updateHud(); flushHud();
@@ -1309,16 +1950,23 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   function gameOver(reason) {
     if (state !== 'play') return;
     state = 'over';
-    const record = score > best;
-    if (record) { best = score; try { localStorage.setItem('balon-best', String(best)); } catch (e) {} }
-    const byScore = reason === 'score';
-    if (byScore) { shake = 16; flash = 0.4; vib([60, 40, 90]); lossSound(); }
-    overInfo = { byScore, score, record, best };
+    const bonus = Math.floor(score / 1500);
+    if (bonus > 0) addCoins(bonus);
+    run.coins += bonus;
+    const key = mode + '-' + diff, prevBest = save.best[key] || 0;
+    const record = score > prevBest;
+    if (record) save.best[key] = score;
+    best = save.best[key] || 0;
+    progress('games', 1);
+    progress('score', score);
+    if (reason === 'lives' || reason === 'missed') { shake = 16; flash = 0.4; vib([60, 40, 90]); lossSound(); }
+    overInfo = { reason, score, record, best, coins:run.coins };
+    saveNow();
     renderMenu();
     updatePauseBtn();
     setTimeout(() => {
       if (state !== 'over') return;
-      if (!reviveUsed && adAvailable()) { showPanel('pRevive'); }
+      if (!reviveUsed && (reason === 'lives' || reason === 'missed') && adAvailable()) { showPanel('pRevive'); }
       else { renderMenu(); showPanel('pMenu'); }
     }, 700);
     updateHud(); flushHud();
@@ -1374,7 +2022,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   }
   function reviveGame() {
     reviveUsed = true;
-    lives = 3; if (score < 0) score = 0;
+    lives = 3; missed = 0;
     streak = 0; lastColor = -1;
     balloons.length = 0; parts.length = 0; rings.length = 0; texts.length = 0; delayed.length = 0;
     spawnTimer = 1.2; shake = 0; flash = 0; overInfo = null;
@@ -1434,6 +2082,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
+      saveNow();
       if (state === 'play') pauseGame(); else if (ac) ac.suspend();
     } else if (ac && !gamePaused) {
       ac.resume();
@@ -1449,7 +2098,16 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
       if (d.t <= 0) { delayed.splice(i, 1); d.fn(); }
     }
     const playing = state === 'play';
-    if (playing) time += dt;
+    if (playing) {
+      time += dt;
+      if (mode === 'timed') {
+        timeLeft -= dt;
+        if (timeLeft <= 0) { timeLeft = 0; updateHud(); gameOver('time'); }
+        else { const ts = Math.ceil(timeLeft); if (ts !== lastTimeSec) { lastTimeSec = ts; updateHud(); } }
+      }
+      saveTimer += dt;
+      if (dirtySave && saveTimer > 4) { saveTimer = 0; saveNow(); }
+    }
 
     let wt = 0;
     if (playing && time > 20) {
@@ -1464,15 +2122,14 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
       if (playing) {
-        let n = 2;
-        if (time > 60) n = 4;
-        else if (time > 35 && Math.random() < 0.5) n = 3;
+        const cap = Math.max(2, Math.floor((W - 40) / (baseR * 1.7)));
+        const n = Math.min(cap, waveSize());
         const xs = [];
         for (let i = 0; i < n; i++) {
           const nb = spawn(false, xs.length ? xs : null, n >= 4);
           xs.push(nb.x);
         }
-        spawnTimer = Math.max(0.5, 1.15 - time * 0.006) * (0.75 + Math.random() * 0.5) * (n >= 4 ? 1.25 : 1);
+        spawnTimer = Math.max(0.5, 1.25 - time * 0.005) * DIFF[curDiff()].gap * Math.pow(n / 3, 0.6) * (0.8 + Math.random() * 0.4);
       } else {
         spawn(true);
         spawnTimer = 0.55 + Math.random() * 0.5;
@@ -1484,8 +2141,14 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
       const b = balloons[i];
       b.y += b.vy * dt;
       b.x += (Math.sin(tAll * 1.6 + b.ph) * b.sw + windVx) * dt;
-      if (b.x < b.r) b.x = b.r;
-      if (b.x > W - b.r) b.x = W - b.r;
+      if (b.vx) { b.x += b.vx * dt; b.vx *= Math.exp(-dt * 2.5); if (Math.abs(b.vx) < 2) b.vx = 0; }
+      if (b.type === 'zigzag') {
+        b.zt -= dt;
+        if (b.zt <= 0) { b.zdir = -b.zdir; b.zt = 0.35 + Math.random() * 0.25; }
+        b.x += b.zdir * 150 * dt;
+      }
+      if (b.x < b.r) { b.x = b.r; if (b.type === 'zigzag') b.zdir = 1; }
+      if (b.x > W - b.r) { b.x = W - b.r; if (b.type === 'zigzag') b.zdir = -1; }
       if (b.hitT > 0) b.hitT -= dt;
       if (b.type === 'grow') {
         const p = Math.max(0, Math.min(1, 1 - (b.y - topLine) / (H - topLine)));
@@ -1499,33 +2162,19 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
           loseLife('grow');
         }
       }
-      if (playing && !b.dead && b.type === 'normal' && b.y - b.r * 1.18 <= topLine) {
+      // klasik modda: çizgiyi aşan normal balon "kaçmış" sayılır, 3 kaçan balon oyunu bitirir
+      if (playing && mode === 'classic' && !b.dead && (b.type === 'normal' || b.type === 'zigzag' || b.type === 'split') &&
+          b.y - b.r * 1.18 <= topLine) {
         b.dead = true;
-        score -= 100;
+        missed++;
         burst(b.x, b.y, ['#9aa2b8', '#d6dcef', '#ffffff'], 8, 160);
-        floatText(b.x, topLine + 34, '-100', '#ff8a9b', 30, 0.9, -30);
+        floatText(b.x, topLine + 34, '!', '#ff8a9b', 38, 0.9, -30);
         missSound();
+        flash = Math.max(flash, 0.25);
         updateHud();
-        if (score <= -100) gameOver('score');
+        if (missed >= MISS_LIMIT) gameOver('missed');
       }
       if (b.y < -b.r * 3) b.dead = true;
-    }
-
-    // dikenli balona değen balonlar patlar
-    for (let i = 0; i < balloons.length; i++) {
-      const bm = balloons[i];
-      if (bm.type !== 'bomb' || bm.dead) continue;
-      for (let j = 0; j < balloons.length; j++) {
-        const o = balloons[j];
-        if (o === bm || o.dead || o.type === 'bomb') continue;
-        const dx = o.x - bm.x, dy = o.y - bm.y, rr = (o.r + bm.r) * 0.95;
-        if (dx * dx + dy * dy < rr * rr) {
-          o.dead = true;
-          burst(o.x, o.y, colorsOf(o).concat(['#ff6b4a']), 12, 280);
-          ring(o.x, o.y, o.r * 2, '#ff6b4a', 0.3);
-          popSound(0);
-        }
-      }
     }
     compact(balloons, alive);
 
@@ -1581,6 +2230,9 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
     } else if (b.type === 'rainbow') {
       ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 + 0.4 * Math.sin(tAll * 7)) + ')'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.ellipse(0, 0, r + 3, ry + 3, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (b.type === 'gold') {
+      ctx.strokeStyle = 'rgba(255,240,150,' + (0.5 + 0.4 * Math.sin(tAll * 9 + b.ph)) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(0, 0, r + 4, ry + 4, 0, 0, Math.PI * 2); ctx.stroke();
     } else if (b.type === 'grow') {
       ctx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.3 * Math.sin(tAll * 6 + b.ph)) + ')'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.ellipse(0, 0, r + 5, ry + 5, 0, 0, Math.PI * 2); ctx.stroke();
@@ -1629,9 +2281,11 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
       ctx.setLineDash([6, 10]); ctx.strokeStyle = 'rgba(255,255,255,.26)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(0, topLine); ctx.lineTo(W, topLine); ctx.stroke();
       ctx.setLineDash([]);
-      const lb = getLabel();
-      const lsc = Math.min(1, (W - 16) / lb.w), lw = lb.w * lsc, lh = lb.h * lsc;
-      ctx.drawImage(lb.c, LL().dir === 'rtl' ? W - lw - 8 : 8, topLine + 6, lw, lh);
+      if (mode === 'classic') {
+        const lb = getLabel();
+        const lsc = Math.min(1, (W - 16) / lb.w), lw = lb.w * lsc, lh = lb.h * lsc;
+        ctx.drawImage(lb.c, LL().dir === 'rtl' ? W - lw - 8 : 8, topLine + 6, lw, lh);
+      }
     }
 
     for (let i = 0; i < balloons.length; i++) drawBalloon(balloons[i]);
@@ -1726,6 +2380,7 @@ button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
       slowCount = 0;
     }
   }
+  initSystems();
   buildLangButtons();
   buildSwatches();
   applyBg(bgIndex, false);
