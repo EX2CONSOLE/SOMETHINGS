@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>BalloonRush</title>
+<style>
+@font-face{ font-family:'Fredoka'; font-weight:400 500; font-style:normal; src:url('fonts/Poppins-Medium.ttf') format('truetype'); }
+@font-face{ font-family:'Fredoka'; font-weight:600 800; font-style:normal; src:url('fonts/Poppins-Bold.ttf') format('truetype'); }
+</style>
+<style>
+:root{
+  --sky-top:#1b1245; --sky-mid:#3b1f6e; --sky-low:#0f6b7a;
+  --ink:#fff6e8; --ink-dim:rgba(255,246,232,.72);
+  --panel:rgba(20,12,52,.93); --accent:#ffd23f; --accent-shadow:#c28f00;
+  box-sizing:border-box;
+  padding-top:var(--safe-area-inset-top, env(safe-area-inset-top,0px));
+  padding-bottom:var(--safe-area-inset-bottom, env(safe-area-inset-bottom,0px));
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#fff6e8; --ink-dim:rgba(255,246,232,.72);
+    --panel:rgba(20,12,52,.93); --accent:#ffd23f; --accent-shadow:#c28f00;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#fff6e8; --ink-dim:rgba(255,246,232,.72);
+  --panel:rgba(20,12,52,.93); --accent:#ffd23f; --accent-shadow:#c28f00;
+}
+html{ scroll-padding-top:var(--safe-area-inset-top, env(safe-area-inset-top,0px)); }
+html,body{
+  height:100%; margin:0; overflow:hidden;
+  background:linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+  color:var(--ink);
+  font-family:'Fredoka','Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;
+  touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+}
+canvas{ position:fixed; inset:0; width:100%; height:100%; display:block; }
+
+#hud{
+  position:fixed; left:0; right:0; top:0; z-index:5; transform:translateZ(0); contain:layout style;
+  padding:calc(var(--safe-area-inset-top, env(safe-area-inset-top,0px)) + 10px) 16px 22px;
+  display:flex; justify-content:space-between; align-items:flex-start;
+  pointer-events:none;
+  background:linear-gradient(to bottom, rgba(14,8,40,.6), rgba(14,8,40,0));
+}
+#score{ min-width:96px; font-size:42px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+#score.neg{ color:#ff8a9b; }
+#best{ font-size:13px; color:var(--ink-dim); margin-top:3px; }
+#combo{ width:84px; text-align:center; opacity:0; transform:translateY(-4px); transition:opacity .15s, transform .15s; }
+#combo.on{ opacity:1; transform:none; }
+#mx{ font-size:34px; font-weight:700; line-height:1; color:var(--accent); }
+#streak{ font-size:13px; color:var(--ink-dim); }
+#bar{ width:64px; height:5px; border-radius:3px; background:rgba(255,255,255,.2); margin:4px auto 0; overflow:hidden; }
+#bar i{ display:block; height:100%; width:100%; background:var(--accent); transform-origin:left center; transform:scaleX(0); }
+#right{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+#lives{ font-size:28px; letter-spacing:2px; line-height:1; }
+.h{ color:#ff4d6d; }
+.h.off{ color:rgba(255,255,255,.22); }
+#btns{ display:flex; gap:8px; }
+#snd,#mus,#pause{
+  position:relative; pointer-events:auto; background:rgba(255,255,255,.14); border:0; border-radius:999px;
+  width:38px; height:38px; color:var(--ink); font-size:18px; cursor:pointer;
+}
+#pause{ display:none; }
+#pause.show{ display:block; }
+#mus.off{ opacity:.55; }
+#mus.off::after{ content:""; position:absolute; left:9px; right:9px; top:50%; height:2px; background:#fff; transform:rotate(-40deg); }
+#fps{
+  position:fixed; right:10px; bottom:calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom,0px)) + 8px); z-index:5;
+  font-size:11px; color:rgba(255,255,255,.45); pointer-events:none;
+}
+
+#overlay{
+  position:fixed; inset:0; z-index:4; display:flex; align-items:center; justify-content:center;
+  padding:calc(var(--safe-area-inset-top, env(safe-area-inset-top,0px)) + 16px) 16px calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom,0px)) + 16px);
+  box-sizing:border-box;
+}
+#overlay.hidden{ display:none; }
+.panel{
+  width:min(100%,380px); box-sizing:border-box; padding:24px 22px 26px; text-align:center;
+  background:var(--panel); border:1px solid rgba(255,255,255,.14); border-radius:26px;
+  max-height:100%; overflow-y:auto; touch-action:pan-y;
+}
+.panel.off{ display:none; }
+.panel h1{ margin:0 0 6px; font-size:44px; line-height:1.15; font-weight:700; }
+.panel p{ margin:0 0 14px; color:var(--ink-dim); font-size:17px; }
+#rules{ list-style:none; margin:0 0 20px; padding:0; text-align:start; }
+#rules li{ position:relative; padding-inline-start:30px; margin:0 0 10px; font-size:16px; line-height:1.4; }
+#rules li::before{
+  content:""; position:absolute; inset-inline-start:2px; top:3px; width:16px; height:19px; border-radius:50%;
+  background:var(--c,#ff4d6d);
+}
+.row{ margin:0 0 20px; text-align:start; }
+.row .lbl{ display:block; font-size:14px; color:var(--ink-dim); margin:0 0 6px; }
+.seg{ display:flex; gap:6px; }
+.seg button{
+  flex:1; font-family:inherit; font-size:15px; font-weight:600; color:var(--ink);
+  background:rgba(255,255,255,.12); border:0; border-radius:999px; padding:9px 4px; cursor:pointer;
+}
+.seg button.on{ background:var(--accent); color:#2a1650; }
+.hint{ margin-top:6px; font-size:13px; color:var(--ink-dim); min-height:17px; }
+.swatches{ display:flex; flex-wrap:wrap; gap:10px; }
+.sw{
+  width:46px; height:46px; border-radius:50%; border:3px solid rgba(255,255,255,.25); cursor:pointer; padding:0;
+}
+.sw.on{ border-color:#fff; box-shadow:0 0 0 2px var(--accent); }
+button:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
+.big{
+  font-family:inherit; font-size:22px; font-weight:700; color:#2a1650; background:var(--accent);
+  border:0; border-radius:999px; padding:12px 38px; cursor:pointer;
+  box-shadow:0 6px 0 var(--accent-shadow);
+}
+.big:active{ transform:translateY(3px); box-shadow:0 3px 0 var(--accent-shadow); }
+.ghost{
+  display:block; margin:14px auto 0; font-family:inherit; font-size:22px; font-weight:700; color:var(--ink);
+  background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.35); border-radius:999px; padding:10px 38px; cursor:pointer;
+}
+.stack .ghost{ width:100%; margin:0; }
+.stack .big{ display:block; width:100%; margin:0 0 12px; }
+.langbtn{
+  display:block; width:100%; margin:0 0 12px; font-family:inherit; font-size:24px; font-weight:700;
+  color:var(--ink); background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.2);
+  border-radius:20px; padding:14px 0; cursor:pointer;
+}
+.langbtn:active{ background:var(--accent); color:#2a1650; }
+.langtitle{ font-size:30px !important; }
+.langgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.langgrid .langbtn{ margin:0; font-size:18px; padding:12px 4px; line-height:1.2; }
+.wrapseg{ flex-wrap:wrap; }
+.wrapseg button{ flex:1 1 calc(33.333% - 6px); padding:9px 2px; font-size:14px; }
+
+/* ödüllü reklam ekranı */
+#adScreen{
+  position:fixed; inset:0; z-index:12; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:16px; padding:24px; box-sizing:border-box; text-align:center;
+  background:linear-gradient(to bottom,#0c0a1f,#1b1245);
+}
+#adScreen.hidden{ display:none; }
+#adTag{ font-size:14px; color:var(--ink-dim); border:1px solid rgba(255,255,255,.3); border-radius:6px; padding:2px 10px; }
+#adCount{ font-size:104px; font-weight:700; line-height:1; color:var(--accent); font-variant-numeric:tabular-nums; }
+#adBarWrap{ width:min(80%,320px); height:8px; border-radius:4px; background:rgba(255,255,255,.2); overflow:hidden; }
+#adBar{ height:100%; width:100%; background:var(--accent); transform-origin:left center; transform:scaleX(0); transition:transform 1s linear; }
+#adHint{ max-width:320px; font-size:16px; line-height:1.4; color:var(--ink-dim); }
+#adClose{
+  position:absolute; top:calc(var(--safe-area-inset-top, env(safe-area-inset-top,0px)) + 12px); inset-inline-end:14px;
+  margin:0; padding:8px 18px; font-size:15px;
+}
+
+/* giriş ekranı */
+#splash{
+  position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+  text-align:center; transition:opacity .45s ease; direction:ltr;
+}
+#splash.out{ opacity:0; pointer-events:none; }
+#splash.gone{ display:none; }
+.cluster{ position:relative; width:150px; height:120px; margin-bottom:26px; }
+.sb{
+  position:absolute; display:block; border-radius:50% 50% 48% 48%;
+  animation:rise 1.3s cubic-bezier(.2,.8,.25,1) both;
+}
+.sb::after{ content:""; position:absolute; left:50%; top:100%; width:1.5px; height:30px; background:rgba(255,255,255,.5); }
+.sb1{ left:4px; top:24px; width:52px; height:62px; animation-delay:.05s;
+  background:radial-gradient(circle at 35% 30%, #ffc2cd, #ff4d6d 55%, #b8123f); }
+.sb2{ left:46px; top:0; width:58px; height:70px; animation-delay:.2s;
+  background:radial-gradient(circle at 35% 30%, #c4e5ff, #3da5ff 55%, #1262b8); }
+.sb3{ left:94px; top:30px; width:52px; height:62px; animation-delay:.35s;
+  background:radial-gradient(circle at 35% 30%, #fff3b0, #ffd23f 55%, #cf8f00); }
+@keyframes rise{ from{ transform:translateY(240px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+@keyframes fade{ from{ opacity:0; } to{ opacity:1; } }
+.wm{ font-size:48px; font-weight:700; line-height:1.05; animation:fade .6s ease 1.1s both; }
+.gm{ margin-top:8px; font-size:24px; font-weight:600; color:var(--accent); animation:fade .6s ease 1.7s both; }
+.founder{
+  position:absolute; left:16px; bottom:calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom,0px)) + 14px);
+  max-width:calc(100% - 32px); text-align:left;
+  font-size:min(36px, 9.5vw); line-height:1.15; color:var(--ink-dim); animation:fade .6s ease 2s both;
+}
+@media (prefers-reduced-motion: reduce){
+  .sb,.wm,.gm,.founder{ animation:none; }
+}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div>
+    <div id="score">0</div>
+    <div id="best">Rekor 0</div>
+  </div>
+  <div id="combo">
+    <div id="mx">x1</div>
+    <div id="streak">seri 0</div>
+    <div id="bar"><i></i></div>
+  </div>
+  <div id="right">
+    <div id="lives"></div>
+    <div id="btns">
+      <button id="pause" aria-label="Duraklat">⏸</button>
+      <button id="mus" aria-label="Müziği aç veya kapat">🎵</button>
+      <button id="snd" aria-label="Efekt seslerini aç veya kapat">🔊</button>
+    </div>
+  </div>
+</div>
+<div id="fps" aria-hidden="true"></div>
+
+<div id="overlay" class="hidden">
+  <!-- dil seçimi (yalnızca ilk açılışta) -->
+  <div class="panel off" id="pLang">
+    <h1 class="langtitle">Dil · Language · اللغة</h1>
+    <p>&nbsp;</p>
+    <div class="langgrid" id="langlist"></div>
+  </div>
+
+  <!-- ana menü / oyun bitti -->
+  <div class="panel off" id="pMenu">
+    <h1 id="ttl">BalloonRush</h1>
+    <p id="sub"></p>
+    <ul id="rules">
+      <li style="--c:#3da5ff" id="r1"></li>
+      <li style="--c:#3b3350" id="r2"></li>
+      <li style="--c:#ff4d6d" id="r3"></li>
+      <li style="--c:#ffd23f" id="r4"></li>
+    </ul>
+    <button class="big" id="go"></button>
+    <button class="ghost" id="openSet"></button>
+  </div>
+
+  <!-- devam et? (reklam izle) -->
+  <div class="panel off stack" id="pRevive">
+    <h1 id="reviveTitle" style="font-size:34px"></h1>
+    <p id="reviveSub"></p>
+    <button class="big" id="watchAd"></button>
+    <button class="ghost" id="noRevive"></button>
+  </div>
+
+  <!-- duraklatıldı -->
+  <div class="panel off stack" id="pPause">
+    <h1 id="pauseTitle"></h1>
+    <p>&nbsp;</p>
+    <button class="big" id="resume"></button>
+    <button class="big" id="restart"></button>
+    <button class="ghost" id="openSet2"></button>
+  </div>
+
+  <!-- ayarlar -->
+  <div class="panel off" id="pSet">
+    <h1 id="setTitle"></h1>
+    <p>&nbsp;</p>
+    <div class="row">
+      <span class="lbl" id="lblLang"></span>
+      <div class="seg wrapseg" id="langseg" role="group"></div>
+    </div>
+    <div class="row">
+      <span class="lbl" id="lblGfx"></span>
+      <div class="seg" id="gfxseg" role="group">
+        <button data-q="0" id="gq0"></button>
+        <button data-q="1" id="gq1"></button>
+        <button data-q="2" id="gq2"></button>
+      </div>
+      <div class="hint" id="gfxhint"></div>
+    </div>
+    <div class="row">
+      <span class="lbl" id="lblBg"></span>
+      <div class="swatches" id="bgseg" role="group"></div>
+    </div>
+    <button class="big" id="back"></button>
+  </div>
+</div>
+
+<div id="adScreen" class="hidden">
+  <button class="ghost" id="adClose"></button>
+  <div id="adTag"></div>
+  <div id="adCount">30</div>
+  <div id="adBarWrap"><div id="adBar"></div></div>
+  <div id="adHint"></div>
+  <button class="big" id="adContinue" style="display:none"></button>
+</div>
+
+<div id="splash">
+  <div class="cluster" aria-hidden="true"><i class="sb sb1"></i><i class="sb sb2"></i><i class="sb sb3"></i></div>
+  <div class="wm">EX2Console</div>
+  <div class="gm">BalloonRush</div>
+  <div class="founder">founder:<br>Arif Yıldırım</div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FONT = 'Fredoka, Cairo, system-ui, sans-serif';
+  const ltr = s => '\u2066' + s + '\u2069'; // sayıların sağdan sola metinde bozulmaması için
+
+  const COL = [
+    { m:'#ff4d6d', l:'#ffc2cd', d:'#b8123f' },
+    { m:'#3da5ff', l:'#c4e5ff', d:'#1262b8' },
+    { m:'#ffd23f', l:'#fff3b0', d:'#cf8f00' }
+  ];
+  const RAINBOW = ['#ff4d6d','#ffd23f','#6dff9a','#3da5ff','#b46bff'];
+
+  /* ---------- diller ---------- */
+  const I18N = {
+    tr: {
+      dir:'ltr',
+      sub:'Tek parmakla, refleksle.',
+      r1:'Balonlara dokunup patlat. Aynı rengi arka arkaya patlatırsan çarpan x2, x4, x8 olur.',
+      r2:'Dikenli balona dokunma, bir can gider. Dikenli balona değen balonlar kendiliğinden patlar.',
+      r3:'Üstteki kesik çizgiyi aşan normal balon -100 puan götürür. Puanın -100\'e düşerse kaybedersin. Boşa dokunmak seriyi bozar.',
+      r4:'Büyüyen balonu tepeye ulaşmadan patlat. Gökkuşağı balon bir rengi topluca patlatır.',
+      start:'Başla', again:'Tekrar oyna', settings:'Ayarlar', back:'Geri',
+      over:'Oyun bitti', lost:'Kaybettiniz', overLives:'Canların bitti', overScore:'Puanın -100\'e düştü',
+      scoreWord:'skor', newRecord:'yeni rekor!', bestWord:'rekor', bestHud:'Rekor', streakHud:'seri',
+      pauseTitle:'Duraklatıldı', resume:'Devam et', restart:'Yeniden başla',
+      setTitle:'Ayarlar', lblLang:'Dil', lblGfx:'Grafik kalitesi', lblBg:'Arka plan',
+      gfx:['Düşük', 'Orta', 'Yüksek'],
+      hints:['En akıcı. Efektler ve yankı en aza iner.', 'Dengeli görünüm ve akıcılık.', 'En güzel görüntü. Güçlü telefon gerekir.'],
+      bg:['Gece', 'Gün batımı', 'Gündüz', 'Orman', 'Uzay'],
+      gfxBanner:'Grafik', bomb:'Bomba!', top:'Tepeye ulaştı!', broken:'Seri bozuldu', windR:'Rüzgâr →', windL:'← Rüzgâr',
+      danger:'kaçan balon -100 · puan -100 olursa kaybedersin',
+      aPause:'Duraklat', aMus:'Müziği aç veya kapat', aSnd:'Efekt seslerini aç veya kapat',
+      reviveTitle:'Devam etmek ister misin?', reviveSub:'Reklam izle, kaldığın yerden devam et.',
+      watchAd:'Reklam izle · 30 sn', noRevive:'Hayır, bitir',
+      adTag:'Reklam (test)', adHint:'Bu bir test reklamıdır. Süre dolunca oyuna devam edeceksin.',
+      adClose:'Kapat', adDone:'Süre doldu!', adContinue:'Devam et'
+    },
+    en: {
+      dir:'ltr',
+      sub:'One finger. Quick reflexes.',
+      r1:'Tap balloons to pop them. Pop the same color in a row and your multiplier grows: x2, x4, x8.',
+      r2:'Don\'t touch a spiked balloon, it costs a life. Balloons that touch a spiked balloon pop on their own.',
+      r3:'A normal balloon that crosses the dashed line at the top costs 100 points. If your score drops to -100, you lose. Tapping empty space breaks your streak.',
+      r4:'Pop a growing balloon before it reaches the top. A rainbow balloon pops a whole color at once.',
+      start:'Start', again:'Play again', settings:'Settings', back:'Back',
+      over:'Game over', lost:'You lost', overLives:'You ran out of lives', overScore:'Your score dropped to -100',
+      scoreWord:'score', newRecord:'new record!', bestWord:'best', bestHud:'Best', streakHud:'streak',
+      pauseTitle:'Paused', resume:'Resume', restart:'Restart',
+      setTitle:'Settings', lblLang:'Language', lblGfx:'Graphics quality', lblBg:'Background',
+      gfx:['Low', 'Medium', 'High'],
+      hints:['Smoothest. Effects are kept to a minimum.', 'A balance of looks and smoothness.', 'Best looking. Needs a powerful phone.'],
+      bg:['Night', 'Sunset', 'Day', 'Forest', 'Space'],
+      gfxBanner:'Graphics', bomb:'Bomb!', top:'Reached the top!', broken:'Streak lost', windR:'Wind →', windL:'← Wind',
+      danger:'escaped balloon -100 · you lose at -100 points',
+      aPause:'Pause', aMus:'Toggle music', aSnd:'Toggle sound effects',
+      reviveTitle:'Continue playing?', reviveSub:'Watch an ad to keep going from where you left off.',
+      watchAd:'Watch ad · 30 s', noRevive:'No thanks',
+      adTag:'Ad (test)', adHint:'This is a test ad. When the timer ends you will continue playing.',
+      adClose:'Close', adDone:'Time is up!', adContinue:'Continue'
+    },
+    ar: {
+      dir:'rtl',
+      sub:'بإصبع واحد، وبسرعة البديهة.',
+      r1:'المس البالونات لتفجيرها. فجّر اللون نفسه عدة مرات متتالية ليصبح المضاعف x2 ثم x4 ثم x8.',
+      r2:'لا تلمس البالون الشائك، فهو يكلّفك قلباً. والبالونات التي تلامس البالون الشائك تنفجر من تلقاء نفسها.',
+      r3:'كل بالون عادي يتجاوز الخط المتقطع في الأعلى يخصم 100 نقطة. وإذا وصلت نقاطك إلى \u2066-100\u2069 فإنك تخسر. واللمس في الفراغ يقطع السلسلة.',
+      r4:'فجّر البالون المنتفخ قبل أن يصل إلى الأعلى. وبالون قوس قزح يفجّر لوناً كاملاً دفعة واحدة.',
+      start:'ابدأ', again:'العب مجدداً', settings:'الإعدادات', back:'رجوع',
+      over:'انتهت اللعبة', lost:'لقد خسرت', overLives:'نفدت قلوبك', overScore:'نقاطك وصلت إلى \u2066-100\u2069',
+      scoreWord:'النقاط', newRecord:'رقم قياسي جديد!', bestWord:'الأفضل', bestHud:'الأفضل', streakHud:'سلسلة',
+      pauseTitle:'إيقاف مؤقت', resume:'متابعة', restart:'إعادة البدء',
+      setTitle:'الإعدادات', lblLang:'اللغة', lblGfx:'جودة الرسوم', lblBg:'الخلفية',
+      gfx:['منخفضة', 'متوسطة', 'عالية'],
+      hints:['الأكثر سلاسة. المؤثرات في أدنى حد.', 'توازن بين الشكل والسلاسة.', 'أجمل شكل. يحتاج إلى هاتف قوي.'],
+      bg:['ليل', 'غروب', 'نهار', 'غابة', 'فضاء'],
+      gfxBanner:'الرسوم', bomb:'قنبلة!', top:'وصل إلى الأعلى!', broken:'انقطعت السلسلة', windR:'رياح', windL:'رياح',
+      danger:'البالون الهارب \u2066-100\u2069 · تخسر عند \u2066-100\u2069 نقطة',
+      aPause:'إيقاف مؤقت', aMus:'تشغيل الموسيقى أو إيقافها', aSnd:'تشغيل المؤثرات الصوتية أو إيقافها',
+      reviveTitle:'هل تريد المتابعة؟', reviveSub:'شاهد إعلاناً لتكمل من حيث توقفت.',
+      watchAd:'شاهد إعلاناً · 30 ث', noRevive:'لا، أنهِ اللعبة',
+      adTag:'إعلان (تجريبي)', adHint:'هذا إعلان تجريبي. عند انتهاء الوقت ستتابع اللعب.',
+      adClose:'إغلاق', adDone:'انتهى الوقت!', adContinue:'متابعة'
+    },
+    es: {
+      dir:"ltr",
+      sub:"Un dedo, reflejos rápidos.",
+      r1:"Toca los globos para reventarlos. Si revientas el mismo color seguido, tu multiplicador sube: x2, x4, x8.",
+      r2:"No toques los globos con pinchos: te cuestan una vida. Los globos que los tocan revientan solos.",
+      r3:"Un globo normal que cruce la línea de puntos de arriba te quita 100 puntos. Si tus puntos bajan a -100, pierdes. Tocar el vacío rompe tu racha.",
+      r4:"Revienta los globos que crecen antes de que lleguen arriba. El globo arcoíris revienta todo un color a la vez.",
+      start:"Empezar", again:"Jugar de nuevo", settings:"Ajustes", back:"Atrás",
+      over:"Fin del juego", lost:"Has perdido", overLives:"Te quedaste sin vidas", overScore:"Tus puntos bajaron a -100",
+      scoreWord:"puntos", newRecord:"¡nuevo récord!", bestWord:"récord", bestHud:"Récord", streakHud:"racha",
+      pauseTitle:"En pausa", resume:"Continuar", restart:"Reiniciar",
+      setTitle:"Ajustes", lblLang:"Idioma", lblGfx:"Calidad gráfica", lblBg:"Fondo",
+      gfx:["Baja", "Media", "Alta"],
+      hints:["La más fluida. Efectos al mínimo.", "Equilibrio entre aspecto y fluidez.", "El mejor aspecto. Requiere un móvil potente."],
+      bg:["Noche", "Atardecer", "Día", "Bosque", "Espacio"],
+      gfxBanner:"Gráficos", bomb:"¡Bomba!", top:"¡Llegó arriba!", broken:"Racha rota", windR:"Viento →", windL:"← Viento",
+      danger:"globo perdido -100 · pierdes si bajas a -100 puntos",
+      aPause:"Pausa", aMus:"Activar o desactivar la música", aSnd:"Activar o desactivar los efectos de sonido",
+      reviveTitle:"¿Seguir jugando?", reviveSub:"Mira un anuncio para continuar donde lo dejaste.",
+      watchAd:"Ver anuncio · 30 s", noRevive:"No, gracias",
+      adTag:"Anuncio (prueba)", adHint:"Este es un anuncio de prueba. Cuando termine el tiempo seguirás jugando.",
+      adClose:"Cerrar", adDone:"¡Se acabó el tiempo!", adContinue:"Continuar"
+    },
+    pt: {
+      dir:"ltr",
+      sub:"Um dedo, reflexos rápidos.",
+      r1:"Toque nos balões para estourá-los. Estoure a mesma cor em sequência e seu multiplicador sobe: x2, x4, x8.",
+      r2:"Não toque nos balões com espinhos: eles custam uma vida. Os balões que encostam neles estouram sozinhos.",
+      r3:"Um balão normal que passar da linha tracejada no alto tira 100 pontos. Se seus pontos caírem para -100, você perde. Tocar no vazio quebra a sequência.",
+      r4:"Estoure os balões que crescem antes que cheguem ao topo. O balão arco-íris estoura uma cor inteira de uma vez.",
+      start:"Começar", again:"Jogar de novo", settings:"Configurações", back:"Voltar",
+      over:"Fim de jogo", lost:"Você perdeu", overLives:"Suas vidas acabaram", overScore:"Seus pontos caíram para -100",
+      scoreWord:"pontos", newRecord:"novo recorde!", bestWord:"recorde", bestHud:"Recorde", streakHud:"sequência",
+      pauseTitle:"Pausado", resume:"Continuar", restart:"Reiniciar",
+      setTitle:"Configurações", lblLang:"Idioma", lblGfx:"Qualidade gráfica", lblBg:"Plano de fundo",
+      gfx:["Baixa", "Média", "Alta"],
+      hints:["Mais fluida. Efeitos no mínimo.", "Equilíbrio entre visual e fluidez.", "Melhor visual. Precisa de um celular potente."],
+      bg:["Noite", "Pôr do sol", "Dia", "Floresta", "Espaço"],
+      gfxBanner:"Gráficos", bomb:"Bomba!", top:"Chegou ao topo!", broken:"Sequência quebrada", windR:"Vento →", windL:"← Vento",
+      danger:"balão perdido -100 · você perde se chegar a -100 pontos",
+      aPause:"Pausar", aMus:"Ativar ou desativar a música", aSnd:"Ativar ou desativar os efeitos sonoros",
+      reviveTitle:"Continuar jogando?", reviveSub:"Assista a um anúncio para continuar de onde parou.",
+      watchAd:"Assistir anúncio · 30 s", noRevive:"Não, obrigado",
+      adTag:"Anúncio (teste)", adHint:"Este é um anúncio de teste. Quando o tempo acabar, você continua jogando.",
+      adClose:"Fechar", adDone:"O tempo acabou!", adContinue:"Continuar"
+    },
+    ru: {
+      dir:"ltr",
+      sub:"Один палец, быстрая реакция.",
+      r1:"Касайся шаров, чтобы лопать их. Лопай один цвет подряд, и множитель растёт: x2, x4, x8.",
+      r2:"Не трогай шары с шипами: они отнимают жизнь. Шары, которые касаются шипастого, лопаются сами.",
+      r3:"Обычный шар, пролетевший за пунктирную линию вверху, отнимает 100 очков. Если очки упадут до -100, ты проиграешь. Касание пустоты прерывает серию.",
+      r4:"Лопни растущий шар, пока он не долетел до верха. Радужный шар лопает сразу весь цвет.",
+      start:"Начать", again:"Играть снова", settings:"Настройки", back:"Назад",
+      over:"Игра окончена", lost:"Ты проиграл", overLives:"Жизни закончились", overScore:"Твои очки упали до -100",
+      scoreWord:"очки", newRecord:"новый рекорд!", bestWord:"рекорд", bestHud:"Рекорд", streakHud:"серия",
+      pauseTitle:"Пауза", resume:"Продолжить", restart:"Заново",
+      setTitle:"Настройки", lblLang:"Язык", lblGfx:"Качество графики", lblBg:"Фон",
+      gfx:["Низкое", "Среднее", "Высокое"],
+      hints:["Самая плавная. Эффектов минимум.", "Баланс красоты и плавности.", "Лучшая картинка. Нужен мощный телефон."],
+      bg:["Ночь", "Закат", "День", "Лес", "Космос"],
+      gfxBanner:"Графика", bomb:"Бомба!", top:"Долетел до верха!", broken:"Серия прервана", windR:"Ветер →", windL:"← Ветер",
+      danger:"упущенный шар -100 · при -100 очков ты проигрываешь",
+      aPause:"Пауза", aMus:"Включить или выключить музыку", aSnd:"Включить или выключить звуковые эффекты",
+      reviveTitle:"Продолжить игру?", reviveSub:"Посмотри рекламу и продолжи с того же места.",
+      watchAd:"Смотреть рекламу · 30 с", noRevive:"Нет, спасибо",
+      adTag:"Реклама (тест)", adHint:"Это тестовая реклама. Когда время закончится, ты продолжишь игру.",
+      adClose:"Закрыть", adDone:"Время вышло!", adContinue:"Продолжить"
+    },
+    de: {
+      dir:"ltr",
+      sub:"Ein Finger, schnelle Reflexe.",
+      r1:"Tippe auf Ballons, um sie platzen zu lassen. Lässt du dieselbe Farbe hintereinander platzen, steigt dein Multiplikator: x2, x4, x8.",
+      r2:"Berühre keine Stachelballons: Sie kosten ein Leben. Ballons, die einen Stachelballon berühren, platzen von selbst.",
+      r3:"Ein normaler Ballon, der die gestrichelte Linie oben überquert, kostet 100 Punkte. Fallen deine Punkte auf -100, hast du verloren. Ein Tipp ins Leere unterbricht deine Serie.",
+      r4:"Lass wachsende Ballons platzen, bevor sie oben ankommen. Der Regenbogenballon lässt eine ganze Farbe auf einmal platzen.",
+      start:"Start", again:"Nochmal spielen", settings:"Einstellungen", back:"Zurück",
+      over:"Spiel vorbei", lost:"Verloren", overLives:"Keine Leben mehr", overScore:"Deine Punkte sind auf -100 gefallen",
+      scoreWord:"Punkte", newRecord:"neuer Rekord!", bestWord:"Rekord", bestHud:"Rekord", streakHud:"Serie",
+      pauseTitle:"Pause", resume:"Weiter", restart:"Neustart",
+      setTitle:"Einstellungen", lblLang:"Sprache", lblGfx:"Grafikqualität", lblBg:"Hintergrund",
+      gfx:["Niedrig", "Mittel", "Hoch"],
+      hints:["Am flüssigsten. Effekte auf ein Minimum reduziert.", "Ausgewogen zwischen Optik und Flüssigkeit.", "Beste Optik. Braucht ein leistungsstarkes Handy."],
+      bg:["Nacht", "Sonnenuntergang", "Tag", "Wald", "Weltraum"],
+      gfxBanner:"Grafik", bomb:"Bombe!", top:"Oben angekommen!", broken:"Serie unterbrochen", windR:"Wind →", windL:"← Wind",
+      danger:"entkommener Ballon -100 · bei -100 Punkten verlierst du",
+      aPause:"Pause", aMus:"Musik ein- oder ausschalten", aSnd:"Soundeffekte ein- oder ausschalten",
+      reviveTitle:"Weiterspielen?", reviveSub:"Sieh dir eine Werbung an und mach dort weiter, wo du aufgehört hast.",
+      watchAd:"Werbung ansehen · 30 s", noRevive:"Nein, danke",
+      adTag:"Werbung (Test)", adHint:"Das ist eine Testwerbung. Wenn die Zeit abläuft, spielst du weiter.",
+      adClose:"Schließen", adDone:"Die Zeit ist um!", adContinue:"Weiter"
+    },
+    fr: {
+      dir:"ltr",
+      sub:"Un doigt, des réflexes rapides.",
+      r1:"Touche les ballons pour les éclater. Éclate la même couleur d’affilée et ton multiplicateur monte : x2, x4, x8.",
+      r2:"Ne touche pas les ballons à piques : ils te coûtent une vie. Les ballons qui les touchent éclatent tout seuls.",
+      r3:"Un ballon normal qui franchit la ligne pointillée en haut te fait perdre 100 points. Si tes points tombent à -100, tu perds. Toucher dans le vide casse ta série.",
+      r4:"Éclate les ballons qui grossissent avant qu’ils n’arrivent en haut. Le ballon arc-en-ciel éclate toute une couleur d’un coup.",
+      start:"Jouer", again:"Rejouer", settings:"Réglages", back:"Retour",
+      over:"Partie terminée", lost:"Perdu", overLives:"Tu n’as plus de vies", overScore:"Tes points sont tombés à -100",
+      scoreWord:"score", newRecord:"nouveau record !", bestWord:"record", bestHud:"Record", streakHud:"série",
+      pauseTitle:"Pause", resume:"Reprendre", restart:"Recommencer",
+      setTitle:"Réglages", lblLang:"Langue", lblGfx:"Qualité graphique", lblBg:"Arrière-plan",
+      gfx:["Basse", "Moyenne", "Élevée"],
+      hints:["La plus fluide. Effets réduits au minimum.", "Équilibre entre rendu et fluidité.", "Le plus beau rendu. Demande un téléphone puissant."],
+      bg:["Nuit", "Coucher de soleil", "Jour", "Forêt", "Espace"],
+      gfxBanner:"Graphismes", bomb:"Bombe !", top:"Arrivé en haut !", broken:"Série brisée", windR:"Vent →", windL:"← Vent",
+      danger:"ballon échappé -100 · tu perds à -100 points",
+      aPause:"Pause", aMus:"Activer ou couper la musique", aSnd:"Activer ou couper les effets sonores",
+      reviveTitle:"Continuer à jouer ?", reviveSub:"Regarde une pub pour reprendre là où tu t’es arrêté.",
+      watchAd:"Voir une pub · 30 s", noRevive:"Non merci",
+      adTag:"Pub (test)", adHint:"Ceci est une pub de test. Quand le temps est écoulé, tu continues à jouer.",
+      adClose:"Fermer", adDone:"Temps écoulé !", adContinue:"Continuer"
+    },
+    id: {
+      dir:"ltr",
+      sub:"Satu jari, refleks cepat.",
+      r1:"Ketuk balon untuk memecahkannya. Pecahkan warna yang sama berturut-turut dan pengalimu naik: x2, x4, x8.",
+      r2:"Jangan sentuh balon berduri, itu mengurangi satu nyawa. Balon yang menyentuhnya akan pecah sendiri.",
+      r3:"Balon biasa yang melewati garis putus-putus di atas mengurangi 100 poin. Jika poinmu turun ke -100, kamu kalah. Mengetuk area kosong memutus rangkaianmu.",
+      r4:"Pecahkan balon yang membesar sebelum mencapai atas. Balon pelangi memecahkan satu warna sekaligus.",
+      start:"Mulai", again:"Main lagi", settings:"Pengaturan", back:"Kembali",
+      over:"Permainan selesai", lost:"Kamu kalah", overLives:"Nyawamu habis", overScore:"Poinmu turun ke -100",
+      scoreWord:"skor", newRecord:"rekor baru!", bestWord:"rekor", bestHud:"Rekor", streakHud:"rangkaian",
+      pauseTitle:"Dijeda", resume:"Lanjutkan", restart:"Mulai ulang",
+      setTitle:"Pengaturan", lblLang:"Bahasa", lblGfx:"Kualitas grafis", lblBg:"Latar belakang",
+      gfx:["Rendah", "Sedang", "Tinggi"],
+      hints:["Paling lancar. Efek diminimalkan.", "Seimbang antara tampilan dan kelancaran.", "Tampilan terbaik. Butuh ponsel yang kuat."],
+      bg:["Malam", "Senja", "Siang", "Hutan", "Luar angkasa"],
+      gfxBanner:"Grafis", bomb:"Bom!", top:"Sampai di atas!", broken:"Rangkaian putus", windR:"Angin →", windL:"← Angin",
+      danger:"balon lolos -100 · kamu kalah di -100 poin",
+      aPause:"Jeda", aMus:"Nyalakan atau matikan musik", aSnd:"Nyalakan atau matikan efek suara",
+      reviveTitle:"Lanjut bermain?", reviveSub:"Tonton iklan untuk melanjutkan dari tempatmu berhenti.",
+      watchAd:"Tonton iklan · 30 dtk", noRevive:"Tidak, terima kasih",
+      adTag:"Iklan (uji coba)", adHint:"Ini iklan uji coba. Setelah waktu habis, kamu melanjutkan permainan.",
+      adClose:"Tutup", adDone:"Waktu habis!", adContinue:"Lanjutkan"
+    }
+  };
+  const LANGS = [
+    { code:'tr', name:'Türkçe' }, { code:'en', name:'English' }, { code:'ar', name:'العربية' },
+    { code:'es', name:'Español' }, { code:'pt', name:'Português' }, { code:'ru', name:'Русский' },
+    { code:'de', name:'Deutsch' }, { code:'fr', name:'Français' }, { code:'id', name:'Bahasa Indonesia' }
+  ];
+  let lang = 'tr', langChosen = false;
+  try {
+    const l = localStorage.getItem('balon-lang');
+    if (l && I18N[l]) { lang = l; langChosen = true; }
+  } catch (e) {}
+  const LL = () => I18N[lang];
+
+  /* ---------- arka planlar ---------- */
+  const BGS = [
+    { top:'#1b1245', mid:'#3b1f6e', low:'#0f6b7a' },
+    { top:'#3a1b5c', mid:'#c2416b', low:'#ff9f5a' },
+    { top:'#2f5fd0', mid:'#4ea3f0', low:'#9fdcff' },
+    { top:'#0b2e2a', mid:'#14675a', low:'#5bbf8a' },
+    { top:'#05050f', mid:'#0f1030', low:'#1b1a4a' }
+  ];
+  let bgIndex = 0;
+  try {
+    const b = parseInt(localStorage.getItem('balon-bg') || '0', 10);
+    if (b >= 0 && b < BGS.length) bgIndex = b;
+  } catch (e) {}
+
+  /* ---------- grafik kalitesi: 0 düşük, 1 orta, 2 yüksek ---------- */
+  const QCFG = [
+    { dpr:1,   parts:0.15, rings:false, glow:false, neon:false, bokeh:false, shake:0.5, reverb:false, echo:false, pad2:false, popGap:0.06 },
+    { dpr:1.5, parts:0.45, rings:true,  glow:false, neon:true,  bokeh:true,  shake:1,   reverb:false, echo:true,  pad2:true,  popGap:0.045 },
+    { dpr:2,   parts:0.8,  rings:true,  glow:true,  neon:true,  bokeh:true,  shake:1,   reverb:true,  echo:true,  pad2:true,  popGap:0.03 }
+  ];
+  let quality = 1, userChose = false;
+  try {
+    const g = localStorage.getItem('balon-gfx');
+    if (g === '0' || g === '1' || g === '2') { quality = parseInt(g, 10); userChose = true; }
+  } catch (e) {}
+  let QC = QCFG[quality];
+
+  let W = 0, H = 0, DPR = 0, safeTop = 0, topLine = 90, baseR = 34;
+  let state = 'ready', gamePaused = false, overInfo = null, reviveUsed = false;
+  let score = 0, lives = 3, streak = 0, lastColor = -1;
+  let time = 0, tAll = 0, wind = 0, windHigh = false, curMult = 1;
+  let spawnTimer = 0.4, shake = 0, flash = 0;
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('balon-best') || '0', 10) || 0; } catch (e) {}
+
+  let balloons = [], parts = [], rings = [], texts = [], delayed = [];
+  const bokeh = [], windLines = [];
+  const spriteCache = new Map(), textCache = new Map();
+  let labelSp = null, neonSp = null;
+
+  /* ---------- hazır çizim önbellekleri ---------- */
+  function makeCanvas(w, h, dpr) {
+    const d = dpr || DPR;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(w * d));
+    c.height = Math.max(1, Math.ceil(h * d));
+    const x = c.getContext('2d');
+    x.scale(d, d);
+    return { c, x };
+  }
+
+  function bodySprite(kind, ci, hp, r) {
+    const ry = r * 1.18, pad = 10;
+    const w = r * 2 + pad * 2, h = ry * 2 + 10 + pad * 2;
+    const cx = w / 2, cy = pad + ry;
+    const { c, x } = makeCanvas(w, h);
+    x.translate(cx, cy);
+    const col = ci >= 0 ? COL[ci] : null;
+    let g;
+    if (kind === 'bomb') {
+      g = x.createRadialGradient(-r * .3, -ry * .35, r * .1, 0, 0, ry * 1.1);
+      g.addColorStop(0, '#5b4d80'); g.addColorStop(.6, '#2a2243'); g.addColorStop(1, '#120d26');
+    } else if (kind === 'stone') {
+      g = x.createRadialGradient(-r * .3, -ry * .35, r * .1, 0, 0, ry * 1.1);
+      g.addColorStop(0, '#eef0f6'); g.addColorStop(.55, '#9aa2b8'); g.addColorStop(1, '#4d5469');
+    } else if (kind === 'rainbow') {
+      if (x.createConicGradient) {
+        g = x.createConicGradient(-0.6, 0, 0);
+        const st = RAINBOW.concat(RAINBOW[0]);
+        st.forEach((cc, i) => g.addColorStop(i / (st.length - 1), cc));
+      } else {
+        g = x.createLinearGradient(-r, -ry, r, ry);
+        RAINBOW.forEach((cc, i) => g.addColorStop(i / (RAINBOW.length - 1), cc));
+      }
+    } else {
+      g = x.createRadialGradient(-r * .3, -ry * .35, r * .1, 0, 0, ry * 1.1);
+      g.addColorStop(0, col.l); g.addColorStop(.5, col.m); g.addColorStop(1, col.d);
+    }
+    x.fillStyle = g;
+    x.beginPath(); x.ellipse(0, 0, r, ry, 0, 0, Math.PI * 2); x.fill();
+
+    x.fillStyle = kind === 'bomb' ? '#120d26' : kind === 'stone' ? '#4d5469' : kind === 'rainbow' ? '#8a5bd6' : col.d;
+    x.beginPath(); x.moveTo(0, ry - 2); x.lineTo(-5, ry + 8); x.lineTo(5, ry + 8); x.closePath(); x.fill();
+
+    if (kind === 'bomb') {
+      x.fillStyle = '#ff5a3c';
+      x.font = '700 ' + (r * 1.15) + 'px ' + FONT;
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText('!', 0, 2);
+    } else if (kind === 'stone') {
+      x.strokeStyle = '#d6dcef'; x.lineWidth = 4;
+      x.beginPath(); x.ellipse(0, 0, r * 0.84, ry * 0.84, 0, 0, Math.PI * 2); x.stroke();
+      if (hp === 1) {
+        x.strokeStyle = '#2b3144'; x.lineWidth = 2.2;
+        x.beginPath(); x.moveTo(-r * 0.1, -ry * 0.55); x.lineTo(r * 0.1, -ry * 0.2); x.lineTo(-r * 0.12, 0); x.lineTo(r * 0.14, ry * 0.3); x.lineTo(0, ry * 0.55); x.stroke();
+      }
+    }
+    x.fillStyle = 'rgba(255,255,255,' + (kind === 'bomb' ? 0.2 : 0.5) + ')';
+    x.beginPath(); x.ellipse(-r * 0.4, -ry * 0.48, r * 0.14, ry * 0.26, -0.5, 0, Math.PI * 2); x.fill();
+    return { c, w, h, cx, cy, r };
+  }
+
+  function spikesSprite(r) {
+    const ry = r * 1.18;
+    const w = (r * 1.3 + 4) * 2, h = (ry * 1.3 + 4) * 2;
+    const cx = w / 2, cy = h / 2;
+    const { c, x } = makeCanvas(w, h);
+    x.translate(cx, cy);
+    x.fillStyle = '#ff6b4a';
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+      const px = ca * r * 0.92, py = sa * ry * 0.92, tx = ca * r * 1.3, ty = sa * ry * 1.3;
+      const nx = -sa, ny = ca, w2 = r * 0.14;
+      x.beginPath(); x.moveTo(px + nx * w2, py + ny * w2); x.lineTo(tx, ty); x.lineTo(px - nx * w2, py - ny * w2); x.closePath(); x.fill();
+    }
+    return { c, w, h, cx, cy, r };
+  }
+
+  function hexA(h, a) {
+    const n = parseInt(h.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function glowSprite(ci) {
+    const key = 'g' + ci;
+    let s = spriteCache.get(key);
+    if (!s) {
+      const { c, x } = makeCanvas(160, 160, 1);
+      const gc = ci >= 0 ? COL[ci].m : '#ffffff';
+      const g = x.createRadialGradient(80, 80, 24, 80, 80, 80);
+      g.addColorStop(0, hexA(gc, 0.38)); g.addColorStop(1, hexA(gc, 0));
+      x.fillStyle = g; x.fillRect(0, 0, 160, 160);
+      s = c; spriteCache.set(key, s);
+    }
+    return s;
+  }
+  function getBody(b) {
+    const bucket = Math.max(5, Math.round(b.r / 3));
+    const kind = (b.type === 'normal' || b.type === 'grow') ? 'c' : b.type;
+    const ci = kind === 'c' ? b.c : -1;
+    const hp = b.type === 'stone' ? b.hp : 0;
+    const key = kind + '|' + ci + '|' + hp + '|' + bucket;
+    let s = spriteCache.get(key);
+    if (!s) { s = bodySprite(kind, ci, hp, bucket * 3); spriteCache.set(key, s); }
+    return s;
+  }
+  function getSpikes(r) {
+    const bucket = Math.max(5, Math.round(r / 3));
+    const key = 'sp|' + bucket;
+    let s = spriteCache.get(key);
+    if (!s) { s = spikesSprite(bucket * 3); spriteCache.set(key, s); }
+    return s;
+  }
+  function getNeon() {
+    if (!neonSp) {
+      neonSp = [];
+      for (let i = 0; i < 6; i++) {
+        const { c, x } = makeCanvas(128, 128, 1);
+        const g = x.createRadialGradient(64, 64, 4, 64, 64, 64);
+        g.addColorStop(0, 'hsla(' + (i * 60) + ',100%,60%,1)');
+        g.addColorStop(1, 'hsla(' + (i * 60) + ',100%,60%,0)');
+        x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+        neonSp.push(c);
+      }
+    }
+    return neonSp;
+  }
+  const ARABIC = /[\u0600-\u06FF]/;
+  function textSprite(s, color, size) {
+    const key = s + '|' + color + '|' + size;
+    let t = textCache.get(key);
+    if (t) return t;
+    if (textCache.size > 200) textCache.clear();
+    const font = '700 ' + size + 'px ' + FONT;
+    const dir = ARABIC.test(s) ? 'rtl' : 'ltr';
+    const probe = makeCanvas(10, 10).x;
+    probe.font = font; probe.direction = dir;
+    const w = Math.ceil(probe.measureText(s).width) + 14, h = Math.ceil(size * 1.4) + 10;
+    const { c, x } = makeCanvas(w, h);
+    x.font = font; x.direction = dir; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+    x.lineWidth = 5; x.strokeStyle = 'rgba(20,10,50,.65)';
+    x.strokeText(s, w / 2, h / 2);
+    x.fillStyle = color; x.fillText(s, w / 2, h / 2);
+    t = { c, w, h };
+    textCache.set(key, t);
+    return t;
+  }
+  function getLabel() {
+    if (!labelSp) {
+      const txt = LL().danger;
+      const font = '600 13px ' + FONT;
+      const dir = LL().dir;
+      const probe = makeCanvas(10, 10).x; probe.font = font; probe.direction = dir;
+      const w = Math.ceil(probe.measureText(txt).width) + 8, h = 20;
+      const { c, x } = makeCanvas(w, h);
+      x.font = font; x.direction = dir; x.textBaseline = 'middle'; x.textAlign = 'left';
+      x.fillStyle = 'rgba(255,200,210,.7)';
+      x.fillText(txt, 2, h / 2);
+      labelSp = { c, w, h };
+    }
+    return labelSp;
+  }
+  function warmTexts() {
+    const L = LL();
+    COL.forEach(c => [10, 25, 30].forEach(base => [1, 2, 4, 8].forEach(m => textSprite('+' + (base * m), c.l, 20 + m * 2.5))));
+    [1, 2, 4, 8].forEach(m => textSprite('+' + (40 * m), '#ffffff', 20 + m * 2.5));
+    ['x2!', 'x4!', 'x8!'].forEach(s => textSprite(s, '#ffd23f', 46));
+    textSprite('-100', '#ff8a9b', 30); textSprite(L.bomb, '#ff9a85', 30);
+    textSprite(L.top, '#ffffff', 26); textSprite(L.broken, '#ffffff', 18);
+    textSprite(L.windR, '#bfeaff', 46); textSprite(L.windL, '#bfeaff', 46);
+  }
+  function warm() {
+    const lo = Math.max(5, Math.round(baseR * 0.85 / 3)), hi = Math.round(baseR * 1.15 / 3);
+    const fake = { r: 0, c: 0, type: 'normal', hp: 0 };
+    for (let k = lo; k <= hi; k++) {
+      fake.r = k * 3;
+      fake.type = 'bomb'; fake.c = -1; fake.hp = 0; getBody(fake); getSpikes(fake.r);
+      fake.type = 'rainbow'; getBody(fake);
+      fake.type = 'stone'; fake.hp = 2; getBody(fake); fake.hp = 1; getBody(fake);
+    }
+    const glo = Math.max(5, Math.round(baseR * 0.85 * 0.75 / 3)), ghi = Math.round(baseR * 1.15 * 1.3 / 3);
+    fake.type = 'normal'; fake.hp = 0;
+    for (let k = glo; k <= ghi; k++) {
+      fake.r = k * 3;
+      for (let ci = 0; ci < 3; ci++) { fake.c = ci; getBody(fake); }
+    }
+    if (QC.glow) for (let ci = -1; ci < 3; ci++) glowSprite(ci);
+    warmTexts();
+  }
+  function resetCaches() { spriteCache.clear(); textCache.clear(); labelSp = null; warm(); }
+
+  function resize() {
+    const nd = Math.min(window.devicePixelRatio || 1, QC.dpr);
+    const nw = window.innerWidth, nh = window.innerHeight;
+    const nb = Math.max(28, Math.min(44, Math.min(nw, nh) * 0.085));
+    const sizeChanged = nw !== W || nh !== H || nd !== DPR;
+    const heavyChanged = nd !== DPR || nb !== baseR;
+    DPR = nd; W = nw; H = nh; baseR = nb;
+    if (sizeChanged) { cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
+    safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
+    topLine = safeTop + 90;
+    if (!bokeh.length) {
+      for (let i = 0; i < 16; i++) {
+        const c = Math.random() < 0.5 ? '#8fe9ff' : '#ffffff', a = 0.04 + Math.random() * 0.07;
+        bokeh.push({ x:Math.random()*W, y:Math.random()*H, r:10+Math.random()*34, sp:8+Math.random()*22, fs:hexA(c, a) });
+      }
+      for (let i = 0; i < 18; i++) windLines.push({ x:Math.random()*W, y:Math.random()*H, len:40+Math.random()*80, k:0.6+Math.random()*0.8 });
+    }
+    if (heavyChanged) resetCaches();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(resetCaches);
+
+  /* ---------- ses ---------- */
+  let ac = null, muted = false, noiseBuf = null, sfxGain = null, lastPopT = 0;
+  const popBufs = [];
+
+  // Patlama sesi bir kez üretilip hazır kaydedilir; her patlamada tek bir kaynak çalınır.
+  function makePopBuffers() {
+    const sr = ac.sampleRate, len = Math.floor(sr * 0.2);
+    for (let v = 0; v < 4; v++) {
+      const buf = ac.createBuffer(1, len, sr), d = buf.getChannelData(0);
+      const f0 = 150 + v * 22, lpA = 0.07 + v * 0.02;
+      let lp = 0, ph = 0;
+      for (let i = 0; i < len; i++) {
+        const t = i / sr;
+        const n = Math.random() * 2 - 1;
+        lp += (n - lp) * lpA;
+        const crack = n * Math.exp(-t * 70);
+        const body = lp * 3.2 * Math.exp(-t * 24);
+        const f = 60 + (f0 - 60) * Math.exp(-t * 40);
+        ph += 2 * Math.PI * f / sr;
+        const thump = Math.sin(ph) * Math.exp(-t * 32);
+        d[i] = Math.max(-1, Math.min(1, crack * 0.8 + body * 0.55 + thump * 0.6));
+      }
+      popBufs.push(buf);
+    }
+  }
+  function initAudio() {
+    if (ac) return;
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = ac.createBuffer(1, ac.sampleRate * 0.5, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      sfxGain = ac.createGain(); sfxGain.gain.value = 0.9; sfxGain.connect(ac.destination);
+      makePopBuffers();
+    } catch (e) { ac = null; }
+  }
+  function tone(freq, dur, type, vol, slide, when) {
+    if (!ac || muted) return;
+    const t = ac.currentTime + (when || 0);
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * slide), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + dur + 0.03);
+  }
+  function noise(dur, vol, hp, when) {
+    if (!ac || muted || !noiseBuf) return;
+    const t = ac.currentTime + (when || 0);
+    const s = ac.createBufferSource(); s.buffer = noiseBuf;
+    const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 1200;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(ac.destination);
+    s.start(t); s.stop(t + dur + 0.02);
+  }
+  const SCALE = [0, 2, 4, 7, 9];
+  function popSound(st) {
+    if (!ac || muted || !popBufs.length) return;
+    const nowT = ac.currentTime;
+    if (nowT - lastPopT < QC.popGap) return;
+    lastPopT = nowT;
+    const s = ac.createBufferSource();
+    s.buffer = popBufs[(Math.random() * popBufs.length) | 0];
+    s.playbackRate.value = 0.92 + Math.random() * 0.2;
+    s.connect(sfxGain);
+    s.start();
+    if (quality === 2) {
+      const step = Math.max(0, Math.min(st, 15) - 1);
+      const semis = SCALE[step % 5] + 12 * Math.floor(step / 5);
+      tone(784 * Math.pow(2, semis / 12), 0.1, 'sine', 0.035, 1, 0.02);
+    }
+  }
+  function bombSound() { tone(190, 0.55, 'sawtooth', 0.24, 0.22, 0); noise(0.45, 0.3, 300, 0); }
+  function lossSound() { tone(240, 0.4, 'square', 0.12, 0.5, 0); noise(0.2, 0.12, 800, 0); }
+  function clinkSound() { tone(950, 0.09, 'square', 0.07, 0.7, 0); noise(0.04, 0.1, 3000, 0); }
+  function missSound() { tone(160, 0.08, 'sine', 0.08, 0.8, 0); }
+  function rainbowSound() { [0, 4, 7, 12, 16].forEach((s, i) => tone(523 * Math.pow(2, s / 12), 0.18, 'triangle', 0.14, 1, i * 0.05)); }
+
+  /* ---------- müzik: sakin, yavaş, kodla üretilen ---------- */
+  let musicOn = true;
+  try { musicOn = localStorage.getItem('balon-music') !== 'off'; } catch (e) {}
+  let musicBus = null, musicTimer = null, nextBarT = 0, barIdx = 0, impulse = null;
+  const BAR = 8;
+  const CHORDS = [[0, 7, 11, 16], [-3, 4, 7, 12], [-7, 0, 4, 9], [-5, 2, 11, 16]];
+  const PENT = [0, 2, 4, 7, 9, 12, 14];
+
+  function makeImpulse() {
+    const len = Math.floor(ac.sampleRate * 1.8);
+    const b = ac.createBuffer(2, len, ac.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = b.getChannelData(c);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+    }
+    return b;
+  }
+  function makeBus() {
+    const master = ac.createGain(); master.gain.value = 0;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000; lp.Q.value = 0.3;
+    const dry = ac.createGain(); dry.gain.value = 0.75;
+    const padIn = ac.createGain(), pluckIn = ac.createGain();
+    padIn.connect(lp);
+    pluckIn.connect(lp);
+    lp.connect(dry); dry.connect(master);
+    if (QC.reverb) {
+      const conv = ac.createConvolver(); conv.buffer = impulse;
+      const wet = ac.createGain(); wet.gain.value = 0.55;
+      lp.connect(conv); conv.connect(wet); wet.connect(master);
+    }
+    if (QC.echo) {
+      const dl = ac.createDelay(2); dl.delayTime.value = 0.9;
+      const fb = ac.createGain(); fb.gain.value = 0.35;
+      const dlOut = ac.createGain(); dlOut.gain.value = 0.5;
+      pluckIn.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(dlOut); dlOut.connect(lp);
+    }
+    master.connect(ac.destination);
+    return { master, padIn, pluckIn };
+  }
+  function pluck(bus, t, f) {
+    const voices = QC.pad2 ? [[f, 0.08, 2.6], [f * 2, 0.02, 1.2]] : [[f, 0.08, 2.6]];
+    voices.forEach(([fr, vol, dur]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = fr;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(bus.pluckIn);
+      o.start(t); o.stop(t + dur + 0.1);
+    });
+  }
+  function scheduleBar(bus, t) {
+    const ch = CHORDS[barIdx % CHORDS.length];
+    barIdx++;
+    const voices = QC.pad2 ? [['sine', -4, 0.03], ['triangle', 5, 0.012]] : [['sine', -4, 0.03]];
+    ch.forEach((s, i) => {
+      const f = 130.81 * Math.pow(2, s / 12);
+      voices.forEach(([type, cents, vol]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = type; o.frequency.value = f; o.detune.value = cents;
+        const t0 = t + i * 0.18;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.linearRampToValueAtTime(vol, t0 + 2.4);
+        g.gain.setValueAtTime(vol, t + BAR - 0.6);
+        g.gain.linearRampToValueAtTime(0.0001, t + BAR + 2.2);
+        o.connect(g); g.connect(bus.padIn);
+        o.start(t0); o.stop(t + BAR + 2.4);
+      });
+    });
+    [0.5, 2, 3.5, 5, 6.5].forEach(sl => {
+      if (Math.random() < 0.65) {
+        const semis = PENT[(Math.random() * PENT.length) | 0];
+        pluck(bus, t + sl + Math.random() * 0.3, 261.63 * Math.pow(2, semis / 12));
+      }
+    });
+  }
+  function startMusic() {
+    if (!ac || !musicOn || musicBus) return;
+    if (QC.reverb && !impulse) impulse = makeImpulse();
+    const bus = makeBus();
+    musicBus = bus;
+    const now = ac.currentTime;
+    bus.master.gain.setValueAtTime(0, now);
+    bus.master.gain.linearRampToValueAtTime(0.7, now + 2.5);
+    nextBarT = now + 0.15;
+    scheduleBar(bus, nextBarT);
+    nextBarT += BAR;
+    musicTimer = setInterval(() => {
+      if (!ac || bus !== musicBus) return;
+      if (nextBarT < ac.currentTime) nextBarT = ac.currentTime + 0.1;
+      if (nextBarT - ac.currentTime < 4) { scheduleBar(bus, nextBarT); nextBarT += BAR; }
+    }, 1000);
+  }
+  function stopMusic() {
+    if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+    if (musicBus && ac) {
+      const b = musicBus; musicBus = null;
+      const now = ac.currentTime;
+      b.master.gain.cancelScheduledValues(now);
+      b.master.gain.setValueAtTime(b.master.gain.value, now);
+      b.master.gain.linearRampToValueAtTime(0, now + 0.6);
+      setTimeout(() => { try { b.master.disconnect(); } catch (e) {} }, 900);
+    }
+  }
+
+  function vib(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+
+  /* ---------- yardımcılar ---------- */
+  function mult() { return streak >= 9 ? 8 : streak >= 6 ? 4 : streak >= 3 ? 2 : 1; }
+  const alive = o => !o.dead;
+  const lifeOk = o => o.life > 0;
+  function compact(arr, keep) {
+    let j = 0;
+    for (let i = 0; i < arr.length; i++) { const v = arr[i]; if (keep(v)) arr[j++] = v; }
+    arr.length = j;
+  }
+
+  /* ---------- HUD (karede en fazla bir kez güncellenir) ---------- */
+  const elScore = $('score'), elBest = $('best'), elCombo = $('combo'), elMx = $('mx'), elStreak = $('streak');
+  const elBar = $('bar').firstElementChild, elFps = $('fps');
+  const livesEl = $('lives');
+  for (let i = 0; i < 3; i++) { const s = document.createElement('span'); s.className = 'h'; s.textContent = '♥'; livesEl.appendChild(s); }
+  const hs = { score: null, best: null, lives: null, streak: null };
+  let hudDirty = true;
+  function updateHud() { hudDirty = true; }
+  function flushHud() {
+    if (!hudDirty) return;
+    hudDirty = false;
+    const L = LL();
+    if (hs.score !== score) { elScore.textContent = ltr(score); elScore.classList.toggle('neg', score < 0); hs.score = score; }
+    const bst = Math.max(best, score);
+    if (hs.best !== bst) { elBest.textContent = L.bestHud + ' ' + ltr(bst); hs.best = bst; }
+    if (hs.lives !== lives) { [...livesEl.children].forEach((el, i) => el.classList.toggle('off', i >= lives)); hs.lives = lives; }
+    if (hs.streak !== streak) {
+      elCombo.classList.toggle('on', streak > 0);
+      elMx.textContent = 'x' + mult();
+      elStreak.textContent = L.streakHud + ' ' + ltr(streak);
+      const prog = streak >= 9 ? 1 : (streak % 3) / 3;
+      elBar.style.transform = 'scaleX(' + prog + ')';
+      hs.streak = streak;
+    }
+  }
+
+  /* ---------- ekranlar (paneller) ---------- */
+  const PANELS = ['pLang', 'pMenu', 'pPause', 'pSet', 'pRevive'];
+  let settingsFrom = 'pMenu';
+  function showPanel(id) {
+    PANELS.forEach(p => $(p).classList.toggle('off', p !== id));
+    $('overlay').classList.remove('hidden');
+  }
+  function hideOverlay() { $('overlay').classList.add('hidden'); }
+  function updatePauseBtn() { $('pause').classList.toggle('show', state === 'play' && !gamePaused); }
+
+  function renderMenu() {
+    const L = LL();
+    if (state === 'over' && overInfo) {
+      $('ttl').textContent = overInfo.byScore ? L.lost : L.over;
+      $('sub').textContent = (overInfo.byScore ? L.overScore : L.overLives) + ' · ' + L.scoreWord + ' ' + ltr(overInfo.score) +
+        ' · ' + (overInfo.record ? L.newRecord : L.bestWord + ' ' + ltr(overInfo.best));
+      $('rules').style.display = 'none';
+      $('go').textContent = L.again;
+    } else {
+      $('ttl').textContent = 'BalloonRush';
+      $('sub').textContent = L.sub;
+      $('rules').style.display = '';
+      $('go').textContent = L.start;
+    }
+  }
+
+  /* ---------- ayarlar: dil, grafik, arka plan ---------- */
+  const swatchEls = [];
+  function buildSwatches() {
+    BGS.forEach((b, i) => {
+      const el = document.createElement('button');
+      el.className = 'sw';
+      el.dataset.bg = String(i);
+      el.style.background = 'linear-gradient(to bottom,' + b.top + ',' + b.mid + ',' + b.low + ')';
+      $('bgseg').appendChild(el);
+      swatchEls.push(el);
+    });
+  }
+  function buildLangButtons() {
+    LANGS.forEach(l => {
+      const a = document.createElement('button');
+      a.className = 'langbtn'; a.dataset.lang = l.code; a.textContent = l.name;
+      $('langlist').appendChild(a);
+      const b = document.createElement('button');
+      b.dataset.lang = l.code; b.textContent = l.name;
+      $('langseg').appendChild(b);
+    });
+  }
+  function applyBg(i, save) {
+    bgIndex = i;
+    const b = BGS[i], st = document.documentElement.style;
+    st.setProperty('--sky-top', b.top); st.setProperty('--sky-mid', b.mid); st.setProperty('--sky-low', b.low);
+    if (save) { try { localStorage.setItem('balon-bg', String(i)); } catch (e) {} }
+    syncSettingsUi();
+  }
+  function syncSettingsUi() {
+    const L = LL();
+    [...$('langseg').children].forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
+    [...$('gfxseg').children].forEach(b => b.classList.toggle('on', parseInt(b.dataset.q, 10) === quality));
+    $('gfxhint').textContent = L.hints[quality];
+    swatchEls.forEach((el, i) => {
+      el.classList.toggle('on', i === bgIndex);
+      el.setAttribute('aria-label', L.bg[i]);
+      el.setAttribute('title', L.bg[i]);
+    });
+  }
+  function applyLang() {
+    const L = LL();
+    document.documentElement.lang = lang;
+    document.documentElement.dir = L.dir;
+    ['r1', 'r2', 'r3', 'r4'].forEach(k => { $(k).textContent = L[k]; });
+    $('openSet').textContent = L.settings; $('openSet2').textContent = L.settings;
+    $('setTitle').textContent = L.setTitle; $('lblLang').textContent = L.lblLang;
+    $('lblGfx').textContent = L.lblGfx; $('lblBg').textContent = L.lblBg;
+    $('back').textContent = L.back; $('pauseTitle').textContent = L.pauseTitle;
+    $('resume').textContent = L.resume; $('restart').textContent = L.restart;
+    $('reviveTitle').textContent = L.reviveTitle; $('reviveSub').textContent = L.reviveSub;
+    $('watchAd').textContent = L.watchAd; $('noRevive').textContent = L.noRevive;
+    $('adTag').textContent = L.adTag; $('adHint').textContent = L.adHint;
+    $('adClose').textContent = L.adClose; $('adContinue').textContent = L.adContinue;
+    for (let i = 0; i < 3; i++) $('gq' + i).textContent = L.gfx[i];
+    $('pause').setAttribute('aria-label', L.aPause);
+    $('mus').setAttribute('aria-label', L.aMus);
+    $('snd').setAttribute('aria-label', L.aSnd);
+    renderMenu();
+    hs.best = null; hs.streak = null; hudDirty = true; flushHud();
+    textCache.clear(); labelSp = null; warmTexts();
+    syncSettingsUi();
+    if (lang === 'ar' && document.fonts && document.fonts.load) {
+      document.fonts.load('700 24px Cairo', 'العربية').then(() => { textCache.clear(); labelSp = null; warmTexts(); });
+    }
+  }
+  function setLang(code) {
+    if (!I18N[code]) return;
+    lang = code; langChosen = true;
+    try { localStorage.setItem('balon-lang', code); } catch (e) {}
+    applyLang();
+  }
+  function setQuality(q, byUser) {
+    q = Math.max(0, Math.min(2, q));
+    if (byUser) {
+      userChose = true;
+      try { localStorage.setItem('balon-gfx', String(q)); } catch (e) {}
+    }
+    if (q !== quality) {
+      quality = q; QC = QCFG[q];
+      parts.length = 0; rings.length = 0;
+      resize();
+      if (musicBus) { stopMusic(); startMusic(); }
+    }
+    syncSettingsUi();
+  }
+
+  $('pLang').addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (b && b.dataset.lang) { setLang(b.dataset.lang); showPanel('pMenu'); }
+  });
+  $('langseg').addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (b && b.dataset.lang) setLang(b.dataset.lang);
+  });
+  $('gfxseg').addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (b && b.dataset.q !== undefined) setQuality(parseInt(b.dataset.q, 10), true);
+  });
+  $('bgseg').addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (b && b.dataset.bg !== undefined) applyBg(parseInt(b.dataset.bg, 10), true);
+  });
+  $('openSet').addEventListener('click', () => { settingsFrom = 'pMenu'; showPanel('pSet'); });
+  $('openSet2').addEventListener('click', () => { settingsFrom = 'pPause'; showPanel('pSet'); });
+  $('back').addEventListener('click', () => showPanel(settingsFrom));
+
+  /* ---------- efektler ---------- */
+  const PAL = [], PALMAP = {};
+  function palIdx(c) {
+    let i = PALMAP[c];
+    if (i === undefined) { i = PAL.length; PAL.push(c); PALMAP[c] = i; }
+    return i;
+  }
+  function burst(x, y, colors, n, speed) {
+    if (parts.length > (quality === 0 ? 60 : 240)) return;
+    n = Math.max(2, Math.round(n * QC.parts * (RM ? 0.5 : 1)));
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = (0.35 + Math.random() * 0.65) * speed;
+      parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - speed*0.2, life:0.5+Math.random()*0.5, s:2+Math.random()*4, k:palIdx(colors[(Math.random()*colors.length)|0]) });
+    }
+  }
+  function ring(x, y, max, color, life) {
+    if (!QC.rings) return;
+    rings.push({ x, y, r:4, max, life:life||0.4, ml:life||0.4, c:color });
+  }
+  function floatText(x, y, s, color, size, life, vy) {
+    if (texts.length > 14) texts.shift();
+    texts.push({ x, y, s, color, size:size||24, life:life||0.8, ml:life||0.8, vy:vy||-60 });
+  }
+  function banner(s, color) { floatText(W / 2, H * 0.36, s, color || '#ffd23f', 46, 1.0, -36); }
+  function colorsOf(b) {
+    if (b.c >= 0) return [COL[b.c].m, COL[b.c].l, '#ffffff'];
+    return RAINBOW;
+  }
+
+  /* ---------- oyun mantığı ---------- */
+  function spawn(decor, avoid, tight) {
+    const r = baseR * (0.85 + Math.random() * 0.3);
+    const margin = r + 8;
+    const gap = r * 2 + baseR * (tight ? 0.3 : 1.2);
+    let x, tries = 0;
+    do {
+      x = margin + Math.random() * Math.max(1, W - margin * 2);
+      tries++;
+    } while (avoid && avoid.some(ax => Math.abs(x - ax) < gap) && tries < 60);
+    let type = 'normal';
+    if (!decor) {
+      const pR = time > 15 ? 0.018 : 0;
+      const pB = time > 10 ? Math.min(0.22, 0.06 + (time - 10) * 0.004) : 0;
+      const pG = time > 14 ? Math.min(0.28, 0.06 + (time - 14) * 0.005) : 0;
+      const pS = time > 24 ? Math.min(0.12, 0.04 + (time - 24) * 0.002) : 0;
+      const roll = Math.random();
+      if (roll < pR) type = 'rainbow';
+      else if (roll < pR + pB) type = 'bomb';
+      else if (roll < pR + pB + pG) type = 'grow';
+      else if (roll < pR + pB + pG + pS) type = 'stone';
+    }
+    const base = decor ? H * 0.23 : H * 0.23 + Math.min(time, 120) * H * 0.00165;
+    const sp = base * (0.88 + Math.random() * 0.28);
+    const c = (type === 'rainbow' || type === 'bomb') ? -1 : (Math.random() * 3) | 0;
+    const nb = {
+      x, y:H + r + 30 + (avoid ? Math.random() * 90 : 0), r:type === 'grow' ? r * 0.75 : r, baseR:r, type, c,
+      vy:-sp, ph:Math.random() * 6.28, sw:18 + Math.random() * 16,
+      hp:type === 'stone' ? 2 : 1, hitT:0, dead:false, locked:false
+    };
+    balloons.push(nb);
+    return nb;
+  }
+
+  function addStreak() {
+    const before = mult();
+    streak++;
+    const after = mult();
+    if (after > before) { banner('x' + after + '!', '#ffd23f'); flash = Math.max(flash, 0.18); }
+  }
+  function award(b, base) {
+    const gain = base * mult();
+    score += gain;
+    floatText(b.x, b.y - b.r, '+' + gain, b.c >= 0 ? COL[b.c].l : '#ffffff', 20 + mult() * 2.5, 0.8, -70);
+    updateHud();
+  }
+  function chainPop(o) {
+    if (o.dead) return;
+    o.dead = true;
+    addStreak();
+    burst(o.x, o.y, colorsOf(o), 14, 300);
+    ring(o.x, o.y, o.r * 2, COL[o.c].l, 0.35);
+    award(o, 10);
+    popSound(streak);
+  }
+  function loseLife(kind) {
+    lives--; streak = 0; lastColor = -1;
+    shake = kind === 'bomb' ? 20 : 14; flash = 0.45;
+    vib(kind === 'bomb' ? [40, 30, 60] : [60]);
+    updateHud();
+    if (lives <= 0) gameOver('lives');
+  }
+
+  function hit(b) {
+    if (b.type === 'bomb') {
+      b.dead = true;
+      burst(b.x, b.y, ['#ff6b4a', '#ffb347', '#3b3350', '#ffffff'], 32, 420);
+      ring(b.x, b.y, b.r * 4, '#ff6b4a', 0.5);
+      bombSound();
+      floatText(b.x, b.y - b.r, LL().bomb, '#ff9a85', 30, 0.9, -50);
+      loseLife('bomb');
+      return;
+    }
+    if (b.type === 'stone' && b.hp > 1) {
+      b.hp = 1; b.hitT = 0.15;
+      burst(b.x, b.y, ['#d6dcef', '#9aa2b8', '#ffffff'], 10, 240);
+      clinkSound();
+      return;
+    }
+    if (b.type === 'rainbow') {
+      b.dead = true;
+      const counts = [0, 0, 0];
+      balloons.forEach(o => { if (!o.dead && !o.locked && (o.type === 'normal' || o.type === 'grow')) counts[o.c]++; });
+      const mx = Math.max(counts[0], counts[1], counts[2]);
+      const ci = mx === 0 ? (Math.random() * 3) | 0 : counts.indexOf(mx);
+      burst(b.x, b.y, RAINBOW, 26, 380);
+      ring(b.x, b.y, Math.max(W, H) * 0.5, COL[ci].m, 0.6);
+      rainbowSound();
+      lastColor = ci;
+      addStreak();
+      award(b, 40);
+      const targets = balloons.filter(o => !o.dead && !o.locked && o.c === ci && (o.type === 'normal' || o.type === 'grow'));
+      targets.forEach((o, i) => {
+        o.locked = true;
+        delayed.push({ t:0.08 * (i + 1), fn:() => chainPop(o) });
+      });
+      return;
+    }
+    b.dead = true;
+    if (streak === 0 || b.c === lastColor) addStreak(); else { streak = 1; }
+    lastColor = b.c;
+    burst(b.x, b.y, colorsOf(b), 16, 320);
+    ring(b.x, b.y, b.r * 2.2, COL[b.c].l, 0.35);
+    award(b, b.type === 'stone' ? 30 : b.type === 'grow' ? 25 : 10);
+    popSound(streak);
+  }
+
+  function tap(x, y) {
+    for (let i = balloons.length - 1; i >= 0; i--) {
+      const b = balloons[i];
+      if (b.dead || b.locked) continue;
+      const dx = (x - b.x) / (b.r + 10), dy = (y - b.y) / (b.r * 1.18 + 10);
+      if (dx * dx + dy * dy <= 1) { hit(b); return; }
+    }
+    if (streak >= 3) floatText(x, y - 20, LL().broken, '#ffffff', 18, 0.7, -40);
+    streak = 0; lastColor = -1;
+    ring(x, y, 26, '#ffffff', 0.25);
+    missSound();
+    updateHud();
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    initAudio();
+    if (ac && ac.state === 'suspended' && !gamePaused) ac.resume();
+    if (state !== 'play' || gamePaused) return;
+    tap(e.clientX, e.clientY);
+  });
+
+  function startGame() {
+    initAudio();
+    gamePaused = false;
+    if (ac && ac.state === 'suspended') ac.resume();
+    startMusic();
+    score = 0; lives = 3; streak = 0; lastColor = -1; time = 0; wind = 0; windHigh = false;
+    balloons = []; parts = []; rings = []; texts = []; delayed = [];
+    spawnTimer = 0.3; shake = 0; flash = 0; overInfo = null; reviveUsed = false;
+    state = 'play';
+    hideOverlay();
+    updatePauseBtn();
+    updateHud(); flushHud();
+  }
+  function gameOver(reason) {
+    if (state !== 'play') return;
+    state = 'over';
+    const record = score > best;
+    if (record) { best = score; try { localStorage.setItem('balon-best', String(best)); } catch (e) {} }
+    const byScore = reason === 'score';
+    if (byScore) { shake = 16; flash = 0.4; vib([60, 40, 90]); lossSound(); }
+    overInfo = { byScore, score, record, best };
+    renderMenu();
+    updatePauseBtn();
+    setTimeout(() => {
+      if (state !== 'over') return;
+      if (!reviveUsed && adAvailable()) { showPanel('pRevive'); }
+      else { renderMenu(); showPanel('pMenu'); }
+    }, 700);
+    updateHud(); flushHud();
+  }
+
+  /* ---------- ödüllü reklam: reklam izle, devam et ---------- */
+  // 'simulate': geliştirme/test için 30 sn'lik sahte reklam ekranı gösterir ("Reklam (test)" yazar).
+  // Gerçek reklam için uygulamada window.BalloonRushAds.showRewarded() tanımlanır
+  // (ödül kazanılırsa true döndüren bir Promise). Tanımlıysa test ekranı yerine o çağrılır.
+  const AD_MODE = 'off';
+  const AD_SECONDS = 30;
+  function adAvailable() {
+    return !!(window.BalloonRushAds && window.BalloonRushAds.showRewarded) || AD_MODE === 'simulate';
+  }
+  function showRewardedAd() {
+    if (window.BalloonRushAds && window.BalloonRushAds.showRewarded) {
+      return Promise.resolve(window.BalloonRushAds.showRewarded()).then(r => !!r, () => false);
+    }
+    return simulateAd();
+  }
+  function simulateAd() {
+    return new Promise(resolve => {
+      const scr = $('adScreen'), cnt = $('adCount'), bar = $('adBar'), cont = $('adContinue'), close = $('adClose');
+      let left = AD_SECONDS, iv = null;
+      function finish(ok) {
+        clearInterval(iv);
+        cont.onclick = null; close.onclick = null;
+        scr.classList.add('hidden');
+        if (ac && !gamePaused && !document.hidden) ac.resume();
+        resolve(ok);
+      }
+      cnt.textContent = ltr(left);
+      bar.style.transform = 'scaleX(0)';
+      cont.style.display = 'none'; close.style.display = '';
+      $('adHint').textContent = LL().adHint;
+      scr.classList.remove('hidden');
+      if (ac) ac.suspend();
+      iv = setInterval(() => {
+        if (document.hidden) return; // sekme arka plandayken süre işlemez
+        left--;
+        cnt.textContent = ltr(Math.max(0, left));
+        bar.style.transform = 'scaleX(' + ((AD_SECONDS - left) / AD_SECONDS) + ')';
+        if (left <= 0) {
+          clearInterval(iv);
+          $('adHint').textContent = LL().adDone;
+          close.style.display = 'none';
+          cont.style.display = '';
+        }
+      }, 1000);
+      cont.onclick = () => finish(true);
+      close.onclick = () => finish(false);
+    });
+  }
+  function reviveGame() {
+    reviveUsed = true;
+    lives = 3; if (score < 0) score = 0;
+    streak = 0; lastColor = -1;
+    balloons.length = 0; parts.length = 0; rings.length = 0; texts.length = 0; delayed.length = 0;
+    spawnTimer = 1.2; shake = 0; flash = 0; overInfo = null;
+    state = 'play'; gamePaused = false;
+    hideOverlay();
+    updatePauseBtn();
+    updateHud(); flushHud();
+    if (ac && !document.hidden) ac.resume();
+  }
+  $('watchAd').addEventListener('click', () => {
+    showRewardedAd().then(ok => {
+      if (ok) reviveGame(); else { renderMenu(); showPanel('pMenu'); }
+    });
+  });
+  $('noRevive').addEventListener('click', () => { renderMenu(); showPanel('pMenu'); });
+
+  /* ---------- duraklatma ---------- */
+  function pauseGame() {
+    if (state !== 'play' || gamePaused) return;
+    gamePaused = true;
+    if (ac) ac.suspend();
+    updatePauseBtn();
+    showPanel('pPause');
+  }
+  function resumeGame() {
+    if (!gamePaused) return;
+    gamePaused = false;
+    last = performance.now(); acc = 0;
+    hideOverlay();
+    updatePauseBtn();
+    if (ac && !document.hidden) ac.resume();
+  }
+  $('pause').addEventListener('click', pauseGame);
+  $('resume').addEventListener('click', resumeGame);
+  $('restart').addEventListener('click', startGame);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { if (gamePaused) resumeGame(); else pauseGame(); }
+  });
+
+  $('go').addEventListener('click', startGame);
+  $('snd').addEventListener('click', () => {
+    muted = !muted;
+    $('snd').textContent = muted ? '🔇' : '🔊';
+  });
+  $('mus').classList.toggle('off', !musicOn);
+  $('mus').addEventListener('click', () => {
+    musicOn = !musicOn;
+    try { localStorage.setItem('balon-music', musicOn ? 'on' : 'off'); } catch (e) {}
+    $('mus').classList.toggle('off', !musicOn);
+    if (musicOn) {
+      initAudio();
+      if (ac && ac.state === 'suspended' && !gamePaused) ac.resume();
+      if (state !== 'ready') startMusic();
+    } else {
+      stopMusic();
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (state === 'play') pauseGame(); else if (ac) ac.suspend();
+    } else if (ac && !gamePaused) {
+      ac.resume();
+    }
+  });
+
+  /* ---------- güncelleme ---------- */
+  function step(dt) {
+    tAll += dt;
+    for (const k of bokeh) { k.y -= k.sp * dt; if (k.y < -k.r) { k.y = H + k.r; k.x = Math.random() * W; } }
+    for (let i = delayed.length - 1; i >= 0; i--) {
+      const d = delayed[i]; d.t -= dt;
+      if (d.t <= 0) { delayed.splice(i, 1); d.fn(); }
+    }
+    const playing = state === 'play';
+    if (playing) time += dt;
+
+    let wt = 0;
+    if (playing && time > 20) {
+      const w = Math.sin(time * 0.35);
+      wt = Math.sign(w) * Math.max(0, Math.abs(w) - 0.35) / 0.65;
+    }
+    wind += (wt - wind) * Math.min(1, dt * 2);
+    const high = Math.abs(wind) > 0.3;
+    if (high && !windHigh && playing) banner(wind > 0 ? LL().windR : LL().windL, '#bfeaff');
+    windHigh = high;
+
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      if (playing) {
+        let n = 2;
+        if (time > 60) n = 4;
+        else if (time > 35 && Math.random() < 0.5) n = 3;
+        const xs = [];
+        for (let i = 0; i < n; i++) {
+          const nb = spawn(false, xs.length ? xs : null, n >= 4);
+          xs.push(nb.x);
+        }
+        spawnTimer = Math.max(0.5, 1.15 - time * 0.006) * (0.75 + Math.random() * 0.5) * (n >= 4 ? 1.25 : 1);
+      } else {
+        spawn(true);
+        spawnTimer = 0.55 + Math.random() * 0.5;
+      }
+    }
+
+    const windVx = wind * 120;
+    for (let i = 0; i < balloons.length; i++) {
+      const b = balloons[i];
+      b.y += b.vy * dt;
+      b.x += (Math.sin(tAll * 1.6 + b.ph) * b.sw + windVx) * dt;
+      if (b.x < b.r) b.x = b.r;
+      if (b.x > W - b.r) b.x = W - b.r;
+      if (b.hitT > 0) b.hitT -= dt;
+      if (b.type === 'grow') {
+        const p = Math.max(0, Math.min(1, 1 - (b.y - topLine) / (H - topLine)));
+        b.r = b.baseR * (0.75 + p * 0.55);
+        if (playing && !b.dead && b.y - b.r * 1.18 <= topLine) {
+          b.dead = true;
+          burst(b.x, b.y, colorsOf(b), 28, 360);
+          ring(b.x, b.y, b.r * 3, '#ffffff', 0.45);
+          lossSound();
+          floatText(b.x, Math.max(b.y + 30, topLine + 40), LL().top, '#ffffff', 26, 0.9, -20);
+          loseLife('grow');
+        }
+      }
+      if (playing && !b.dead && b.type === 'normal' && b.y - b.r * 1.18 <= topLine) {
+        b.dead = true;
+        score -= 100;
+        burst(b.x, b.y, ['#9aa2b8', '#d6dcef', '#ffffff'], 8, 160);
+        floatText(b.x, topLine + 34, '-100', '#ff8a9b', 30, 0.9, -30);
+        missSound();
+        updateHud();
+        if (score <= -100) gameOver('score');
+      }
+      if (b.y < -b.r * 3) b.dead = true;
+    }
+
+    // dikenli balona değen balonlar patlar
+    for (let i = 0; i < balloons.length; i++) {
+      const bm = balloons[i];
+      if (bm.type !== 'bomb' || bm.dead) continue;
+      for (let j = 0; j < balloons.length; j++) {
+        const o = balloons[j];
+        if (o === bm || o.dead || o.type === 'bomb') continue;
+        const dx = o.x - bm.x, dy = o.y - bm.y, rr = (o.r + bm.r) * 0.95;
+        if (dx * dx + dy * dy < rr * rr) {
+          o.dead = true;
+          burst(o.x, o.y, colorsOf(o).concat(['#ff6b4a']), 12, 280);
+          ring(o.x, o.y, o.r * 2, '#ff6b4a', 0.3);
+          popSound(0);
+        }
+      }
+    }
+    compact(balloons, alive);
+
+    for (let i = 0; i < parts.length; i++) { const p = parts[i]; p.life -= dt; p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+    compact(parts, lifeOk);
+    for (let i = 0; i < rings.length; i++) { const r = rings[i]; r.life -= dt; r.r = 4 + (r.max - 4) * (1 - r.life / r.ml); }
+    compact(rings, lifeOk);
+    for (let i = 0; i < texts.length; i++) { const t = texts[i]; t.life -= dt; t.y += t.vy * dt; }
+    compact(texts, lifeOk);
+
+    shake *= Math.exp(-dt * 7);
+    if (shake < 0.2) shake = 0;
+    flash = Math.max(0, flash - dt * 1.4);
+
+    if (Math.abs(wind) > 0.02) {
+      for (const l of windLines) {
+        l.x += wind * 700 * l.k * dt;
+        if (l.x > W + l.len) l.x = -l.len;
+        if (l.x < -l.len) l.x = W + l.len;
+      }
+    }
+  }
+
+  /* ---------- çizim ---------- */
+  function drawBalloon(b) {
+    const r = b.r, ry = r * 1.18;
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(Math.sin(tAll * 1.6 + b.ph) * 0.07);
+    if (b.hitT > 0) { const sc = 1 + 0.18 * (b.hitT / 0.15); ctx.scale(sc, sc); }
+
+    const s = Math.sin(tAll * 4 + b.ph) * 7;
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(0, ry + 7); ctx.quadraticCurveTo(s, ry + r * 0.8, -s * 0.6, ry + r * 1.6); ctx.stroke();
+
+    if (QC.glow && curMult >= 2 && b.type !== 'bomb') {
+      const gk = r / 40;
+      ctx.drawImage(glowSprite(b.c), -80 * gk, -80 * gk, 160 * gk, 160 * gk);
+    }
+    if (b.type === 'bomb') {
+      const sp = getSpikes(r), ks = r / sp.r;
+      ctx.save(); ctx.rotate(tAll * 0.5);
+      ctx.drawImage(sp.c, -sp.cx * ks, -sp.cy * ks, sp.w * ks, sp.h * ks);
+      ctx.restore();
+    }
+    const bs = getBody(b), k = r / bs.r;
+    ctx.drawImage(bs.c, -bs.cx * k, -bs.cy * k, bs.w * k, bs.h * k);
+
+    if (b.type === 'bomb') {
+      const pulse = 0.5 + 0.5 * Math.sin(tAll * 8 + b.ph);
+      ctx.strokeStyle = 'rgba(255,90,60,' + (0.4 + pulse * 0.5) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(0, 0, r * 0.98, ry * 0.98, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (b.type === 'rainbow') {
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 + 0.4 * Math.sin(tAll * 7)) + ')'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(0, 0, r + 3, ry + 3, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (b.type === 'grow') {
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.3 * Math.sin(tAll * 6 + b.ph)) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(0, 0, r + 5, ry + 5, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, W, H); // gökyüzü CSS ile çiziliyor
+
+    curMult = state === 'play' ? mult() : 1;
+    if (QC.neon && curMult >= 2) {
+      const sp = getNeon();
+      const a = (curMult >= 4 ? 0.2 : 0.1) + 0.06 * Math.sin(tAll * 6);
+      const hp = ((tAll * 60) % 360) / 60, i0 = Math.floor(hp) % 6, f = hp - Math.floor(hp);
+      const R = H * 0.85;
+      ctx.globalAlpha = a * (1 - f); ctx.drawImage(sp[i0], W / 2 - R, H - R, R * 2, R * 2);
+      ctx.globalAlpha = a * f; ctx.drawImage(sp[(i0 + 1) % 6], W / 2 - R, H - R, R * 2, R * 2);
+      ctx.globalAlpha = 1;
+    }
+
+    if (QC.bokeh) {
+      for (let i = 0; i < bokeh.length; i++) {
+        const k = bokeh[i];
+        ctx.fillStyle = k.fs;
+        ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 7); ctx.fill();
+      }
+    }
+
+    const wa = Math.abs(wind);
+    if (wa > 0.05) {
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.22 * wa) + ')'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (const l of windLines) { ctx.moveTo(l.x, l.y); ctx.lineTo(l.x - Math.sign(wind) * l.len * l.k, l.y); }
+      ctx.stroke();
+    }
+
+    ctx.save();
+    if (shake > 0) {
+      const sk = shake * QC.shake * (RM ? 0.3 : 1);
+      ctx.translate((Math.random() - .5) * sk, (Math.random() - .5) * sk);
+    }
+
+    if (state === 'play') {
+      ctx.setLineDash([6, 10]); ctx.strokeStyle = 'rgba(255,255,255,.26)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, topLine); ctx.lineTo(W, topLine); ctx.stroke();
+      ctx.setLineDash([]);
+      const lb = getLabel();
+      const lsc = Math.min(1, (W - 16) / lb.w), lw = lb.w * lsc, lh = lb.h * lsc;
+      ctx.drawImage(lb.c, LL().dir === 'rtl' ? W - lw - 8 : 8, topLine + 6, lw, lh);
+    }
+
+    for (let i = 0; i < balloons.length; i++) drawBalloon(balloons[i]);
+
+    for (let i = 0; i < rings.length; i++) {
+      const r = rings[i];
+      ctx.globalAlpha = Math.max(0, r.life / r.ml);
+      ctx.strokeStyle = r.c; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    if (parts.length) {
+      for (let k = 0; k < PAL.length; k++) {
+        ctx.fillStyle = PAL[k];
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i];
+          if (p.k !== k) continue;
+          ctx.globalAlpha = Math.min(1, p.life * 2);
+          ctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    for (let i = 0; i < texts.length; i++) {
+      const t = texts[i], sp = textSprite(t.s, t.color, t.size);
+      ctx.globalAlpha = Math.max(0, Math.min(1, t.life / t.ml * 1.6));
+      ctx.drawImage(sp.c, t.x - sp.w / 2, t.y - sp.h / 2, sp.w, sp.h);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    if (flash > 0) {
+      ctx.fillStyle = 'rgba(255,90,90,' + Math.min(0.4, flash * 0.5) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  /* ---------- giriş ekranı ---------- */
+  let paused = true, splashDone = false;
+  const splashT0 = performance.now();
+  function dismissSplash() {
+    if (splashDone) return;
+    splashDone = true;
+    const sp = $('splash');
+    sp.classList.add('out');
+    setTimeout(() => { sp.classList.add('gone'); }, 500);
+    paused = false;
+    // dil daha önce seçildiyse bir daha sorulmaz
+    showPanel(langChosen ? 'pMenu' : 'pLang');
+  }
+  $('splash').addEventListener('click', () => {
+    if (performance.now() - splashT0 > 600) dismissSplash();
+  });
+  setTimeout(dismissSplash, 3600);
+
+  /* ---------- döngü: 60 fps sınırı + otomatik kalite ayarı ---------- */
+  let last = performance.now(), acc = 0, lastDraw = last, ema = 16.7, slowCount = 0, drawn = 0, fpsT = last, fpsN = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (paused || gamePaused) { last = now; lastDraw = now; fpsT = now; acc = 0; return; }
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    acc += dt;
+    if (acc < 0.0145) return; // 120 Hz ekranlarda her ikinci kareyi atla
+    const stepDt = Math.min(acc, 0.05);
+    acc = 0;
+    step(stepDt);
+    draw();
+    flushHud();
+
+    fpsN++;
+    if (now - fpsT >= 500) {
+      elFps.textContent = state === 'play' ? Math.round(fpsN * 1000 / (now - fpsT)) + ' fps · ' + LL().gfx[quality] : '';
+      fpsT = now; fpsN = 0;
+    }
+
+    const dd = Math.min(now - lastDraw, 60);
+    lastDraw = now;
+    ema = ema * 0.92 + dd * 0.08;
+    drawn++;
+    // kullanıcı kendisi seçmediyse, yavaşlarsa kaliteyi otomatik düşür
+    if (!userChose && drawn > 120 && ema > 24 && quality > 0) {
+      slowCount++;
+      if (slowCount > 45) {
+        slowCount = 0; ema = 16.7;
+        setQuality(quality - 1, false);
+        banner(LL().gfxBanner + ': ' + LL().gfx[quality], '#bfeaff');
+      }
+    } else {
+      slowCount = 0;
+    }
+  }
+  buildLangButtons();
+  buildSwatches();
+  applyBg(bgIndex, false);
+  applyLang();
+  updateHud(); flushHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
